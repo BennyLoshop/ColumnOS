@@ -4,6 +4,6 @@
 
 ## ColumnOS.js
 
-本项目搭载了`ColumnOS.js`，提供了虚拟文件系统（基于IndexedDb）和轻量App框架。
+本项目搭载了`ColumnOS.js`，提供了虚拟文件系统（基于IndexedDb）和轻量App框架。ColumnOs.md
 
-[使用文档](ColumnOs.md)
+[使用文档](ColumnOS.md)
