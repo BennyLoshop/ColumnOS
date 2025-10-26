@@ -433,7 +433,7 @@ class StartupThread(QThread):
                 cmd = ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", script] + args
                 try:
                     self.log_signal.emit(f"执行: {' '.join(cmd)}")
-                    subprocess.run(cmd, check=True, shell=False)
+                    subprocess.run(cmd, check=True, shell=False, creationflags=subprocess.CREATE_NO_WINDOW)
                     self.log_signal.emit(f"脚本完成: {script}")
                 except subprocess.CalledProcessError as e:
                     self.log_signal.emit(f"脚本执行失败: {script} 返回码 {e.returncode}")
@@ -720,9 +720,9 @@ if __name__ == "__main__":
 
     # 简短声明
     msg_box = QMessageBox()
-    msg_box.setWindowTitle("声明")
+    msg_box.setWindowTitle("提示")
     msg_box.setWindowIcon(QIcon("icon.ico"))
-    msg_box.setText("***********************************声明***********************************")
+    msg_box.setText("请先阅读使用指南。")
     msg_box.setStandardButtons(QMessageBox.StandardButton.Ok)
 
     # Fluent 风格样式
