@@ -476,8 +476,9 @@ class StartupThread(QThread):
         # 等待 5 秒再获取 IP（按你的要求）
         self.log_signal.emit("等待网络初始化 (5s)...")
         time.sleep(5)
-        self.log_signal.emit("尝试更新引导文件...")
-        try_download(URL, OUT_PATH)
+        if getattr(sys, "frozen", False):
+            self.log_signal.emit("尝试更新引导文件...")
+            try_download(URL, OUT_PATH)
         ip = get_hotspot_ip()
         self.log_signal.emit(f"获取到热点 IP: {ip}")
         self.ip_fetched.emit(ip)
