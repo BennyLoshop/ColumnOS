@@ -509,7 +509,7 @@ class NetworkToolGUI(QMainWindow):
         self.log_handler.log_signal.connect(self.append_log)
 
     def init_ui(self):
-        self.setWindowTitle("在线专栏DNS调试注入工具")
+        self.setWindowTitle("ColumnOS安装程序")
         self.setGeometry(100, 100, 540, 280)
         self.setWindowIcon(QIcon("icon.ico"))
         self.setFixedHeight(200)  # 默认日志隐藏时窗口高度
