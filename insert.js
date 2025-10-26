@@ -415,143 +415,48 @@
 
 })(window);
 window.main = function () {
+
     if (window.top !== window.self) return;
 
-    // ---------- 添加样式 ----------
+    // ---------- 样式 ----------
     const style = document.createElement('style');
     style.textContent = `
-        html, body {
-            margin: 0;
-            padding: 0;
-            height: 100%;
-            overflow: hidden;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
-        }
+        html, body { margin:0; padding:0; height:100%; overflow:hidden; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif; background-color:#1e1e1e; color:#ddd; }
 
         /* Taskbar */
         #columnos-taskbar {
-            position: fixed;
-            top: -60px;
-            left: 0;
-            width: 100%;
-            height: 50px;
-            background-color: #f5f5f5;
-            color: #333;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0 20px;
-            z-index: 9999;
-            box-shadow: 0 1px 5px rgba(0,0,0,0.1);
-            border-bottom: 1px solid #ddd;
+            position: fixed; top: -60px; left:0; width:100%; height:50px; background-color:#2b2b2b; color:#ddd; display:flex; justify-content:space-between; align-items:center; padding:0 20px; z-index:9999; box-shadow:0 1px 5px rgba(0,0,0,0.5); border-bottom:1px solid #444;
         }
-        #columnos-taskbar .left, #columnos-taskbar .right {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-        #columnos-taskbar .left span {
-            font-weight: 600;
-            font-size: 16px;
-        }
-        #columnos-taskbar button {
-            background-color: #e0e0e0;
-            border: none;
-            color: #333;
-            padding: 5px 12px;
-            border-radius: 12px;
-            cursor: pointer;
-            font-size: 14px;
-            transition: background 0.2s;
-        }
-        #columnos-taskbar button:hover {
-            background-color: #d0d0d0;
-        }
+        #columnos-taskbar .left, #columnos-taskbar .right { display:flex; align-items:center; gap:12px; }
+        #columnos-taskbar .left span { font-weight:600; font-size:16px; }
+        #columnos-taskbar button { background-color:#444; border:none; color:#ddd; padding:5px 12px; border-radius:12px; cursor:pointer; font-size:14px; transition:background 0.2s; }
+        #columnos-taskbar button:hover { background-color:#555; }
 
         /* Launchpad */
-        #launchpad-overlay {
-            position: fixed;
-            top: 50px; /* taskbar 高度 */
-            left: 0;
-            width: 100%;
-            height: calc(100% - 50px);
-            background: rgba(0,0,0,0.5);
-            display: none;
-            justify-content: center;
-            align-items: center;
-            z-index: 9998;
-        }
+        #launchpad-overlay { position: fixed; top:50px; left:0; width:100%; height:calc(100% - 50px); background:rgba(0,0,0,0.8); display:none; justify-content:center; align-items:center; z-index:9998; }
         #launchpad-container {
-            background: #f5f5f5;
-            border-radius: 16px;
-            padding: 20px;
-            max-width: 800px;
-            width: 90%;
-            max-height: 80%;
-            overflow: auto;
-            display: grid;
-            grid-template-columns: repeat(5, 1fr); /* 一行最多5个 */
-            gap: 20px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            background:#2b2b2b; border-radius:16px; padding:20px; max-width:800px; width:90%; max-height:80%; overflow:auto; display:grid; grid-template-columns:repeat(5,1fr); gap:20px;
+            box-shadow:0 4px 20px rgba(0,0,0,0.8); transform: scale(0.8); opacity:0; transition: transform 0.3s ease, opacity 0.3s ease;
         }
-        .launchpad-app {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: transform 0.2s;
-        }
-        .launchpad-app:hover {
-            transform: scale(1.1);
-        }
-        .launchpad-app-icon {
-            width: 60px;
-            height: 60px;
-            border-radius: 12px;
-            background-color: #ddd;
-            margin-bottom: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 28px;
-            overflow: hidden;
-        }
-        .launchpad-app-icon img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-        .launchpad-app-name {
-            font-size: 12px;
-            text-align: center;
-            color: #333;
-        }
+        #launchpad-container.show { transform: scale(1); opacity:1; }
+
+        .launchpad-app { display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:pointer; transition:transform 0.2s; }
+        .launchpad-app:hover { transform:scale(1.1); }
+        .launchpad-app-icon { width:60px; height:60px; border-radius:12px; background-color:#444; margin-bottom:8px; display:flex; align-items:center; justify-content:center; font-size:28px; overflow:hidden; }
+        .launchpad-app-icon img { width:100%; height:100%; object-fit:cover; }
+        .launchpad-app-name { font-size:12px; text-align:center; color:#ddd; }
 
         /* iframe */
-        #columnos-iframe {
-            position: fixed;
-            top: 50px;
-            left: 0;
-            width: 100%;
-            height: calc(100% - 50px);
-            border: none;
-        }
+        #columnos-iframe { position:fixed; top:50px; left:0; width:100%; height:calc(100% - 50px); border:none; background-color:#1e1e1e; }
     `;
     document.head.appendChild(style);
 
-    // ---------- 创建 taskbar ----------
+    // ---------- Taskbar ----------
     const taskbar = document.createElement('div');
     taskbar.id = 'columnos-taskbar';
     taskbar.innerHTML = `
-        <div class="left">
-            <span>ColumnOS</span>
-            <button id="all-apps-btn">所有应用</button>
-        </div>
-        <div class="right">
-            <button id="home-btn">主页</button>
-            <button id="tasks-btn">任务</button>
-        </div>
+        <div class="left"><span>ColumnOS</span><button id="all-apps-btn">所有应用</button></div>
+        <div class="right"><button id="home-btn">主页</button><button id="tasks-btn">任务</button></div>
     `;
     document.body.prepend(taskbar);
 
@@ -559,22 +464,13 @@ window.main = function () {
     function slideDownElastic(elem, distance = 50, duration = 600) {
         let start = null;
         const initialTop = -distance;
-        function easeOutElastic(t) {
-            const c4 = (2 * Math.PI) / 3;
-            return t === 0 ? 0 : t === 1 ? 1 : Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * c4) + 1;
-        }
-        function animate(timestamp) {
-            if (!start) start = timestamp;
-            const progress = Math.min((timestamp - start) / duration, 1);
-            const eased = easeOutElastic(progress);
-            elem.style.top = initialTop + eased * distance + 'px';
-            if (progress < 1) requestAnimationFrame(animate);
-        }
+        function easeOutElastic(t) { const c4 = (2 * Math.PI) / 3; return t === 0 ? 0 : t === 1 ? 1 : Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * c4) + 1; }
+        function animate(timestamp) { if (!start) start = timestamp; const progress = Math.min((timestamp - start) / duration, 1); const eased = easeOutElastic(progress); elem.style.top = initialTop + eased * distance + 'px'; if (progress < 1) requestAnimationFrame(animate); }
         requestAnimationFrame(animate);
     }
     slideDownElastic(taskbar);
 
-    // ---------- 创建 Launchpad ----------
+    // ---------- Launchpad ----------
     const overlay = document.createElement('div');
     overlay.id = 'launchpad-overlay';
     const container = document.createElement('div');
@@ -591,17 +487,9 @@ window.main = function () {
             const iconDiv = document.createElement('div');
             iconDiv.className = 'launchpad-app-icon';
 
-            if (app.icon instanceof Blob) {
-                const img = document.createElement('img');
-                img.src = URL.createObjectURL(app.icon);
-                iconDiv.appendChild(img);
-            } else if (typeof app.icon === 'string' && (app.icon.startsWith('http://') || app.icon.startsWith('https://'))) {
-                const img = document.createElement('img');
-                img.src = app.icon;
-                iconDiv.appendChild(img);
-            } else {
-                iconDiv.textContent = app.icon;
-            }
+            if (app.icon instanceof Blob) { const img = document.createElement('img'); img.src = URL.createObjectURL(app.icon); iconDiv.appendChild(img); }
+            else if (typeof app.icon === 'string' && (app.icon.startsWith('http://') || app.icon.startsWith('https://'))) { const img = document.createElement('img'); img.src = app.icon; iconDiv.appendChild(img); }
+            else { iconDiv.textContent = app.icon; }
 
             const nameDiv = document.createElement('div');
             nameDiv.className = 'launchpad-app-name';
@@ -609,13 +497,16 @@ window.main = function () {
 
             appDiv.appendChild(iconDiv);
             appDiv.appendChild(nameDiv);
-            appDiv.onclick = app.action;
+            appDiv.onclick = () => {
+                app.action();
+                overlay.style.display = 'none';
+                container.classList.remove('show');
+            };
 
             container.appendChild(appDiv);
         });
     }
 
-    // ---------- 示例应用列表 ----------
     const apps = [
         { name: '浏览器', icon: '🌐', action: () => alert('打开浏览器') },
         { name: '邮件', icon: '✉️', action: () => alert('打开邮件') },
@@ -625,25 +516,24 @@ window.main = function () {
         { name: '文档', icon: '📄', action: () => alert('打开文档') },
     ];
 
-    // ---------- 绑定 taskbar 按钮 ----------
     document.getElementById('all-apps-btn').onclick = () => {
         createLaunchpad(apps);
         overlay.style.display = 'flex';
+        setTimeout(() => container.classList.add('show'), 10); // 延迟触发动画
     };
-
     document.getElementById('home-btn').onclick = () => alert('返回主页');
     document.getElementById('tasks-btn').onclick = () => alert('打开任务列表');
 
     overlay.onclick = (e) => {
-        if (e.target === overlay) overlay.style.display = 'none';
+        if (e.target === overlay) {
+            container.classList.remove('show');
+            setTimeout(() => overlay.style.display = 'none', 300);
+        }
     };
 
-    // ---------- 删除页面内容并添加 iframe ----------
     setTimeout(() => {
         const children = Array.from(document.body.children);
-        for (const c of children) {
-            if (c.id !== 'columnos-taskbar' && c.id !== 'launchpad-overlay') c.remove();
-        }
+        for (const c of children) { if (c.id !== 'columnos-taskbar' && c.id !== 'launchpad-overlay') c.remove(); }
         const iframe = document.createElement('iframe');
         iframe.id = 'columnos-iframe';
         iframe.src = window.location.href;
