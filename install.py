@@ -31,6 +31,34 @@ INSERT_JS_PATH = "insert.js"
 BOOK_DIR = "./book"
 HOTSPOT_SSID = "Hack Hotspot"
 HOTSPOT_PASSWORD = "helloezy"
+URL = "https://hub.gitmirror.com/https://github.com/BennyLoshop/ColumnOS/raw/refs/heads/main/insert.js"
+OUT_PATH = os.path.abspath("insert.js")
+
+def try_download(url: str, out_path: str, timeout: int = 10) -> bool:
+    """
+    尝试下载 URL 到 out_path。
+    成功返回 True，失败（包括非200响应或异常）返回 False（并忽略错误）。
+    """
+    try:
+        resp = requests.get(url, stream=True, timeout=timeout)
+        if resp.status_code != 200:
+            # 非 200 则视为失败，忽略
+            # print(f"下载失败，HTTP {resp.status_code}")
+            return False
+
+        # 将响应流写入文件（原子写入到临时文件再重命名）
+        tmp_path = out_path + ".part"
+        with open(tmp_path, "wb") as f:
+            shutil.copyfileobj(resp.raw, f)
+        os.replace(tmp_path, out_path)
+        # print(f"已保存到 {out_path}")
+        return True
+
+    except Exception:
+        # 忽略所有错误
+        # 如需调试，可取消下一行注释以打印异常信息
+        # import traceback; traceback.print_exc()
+        return False
 
 # -------- IP 获取函数（使用你提供的版本）--------
 def get_hotspot_ip():
@@ -448,6 +476,8 @@ class StartupThread(QThread):
         # 等待 5 秒再获取 IP（按你的要求）
         self.log_signal.emit("等待网络初始化 (5s)...")
         time.sleep(5)
+        self.log_signal.emit("尝试更新引导文件...")
+        try_download(URL, OUT_PATH)
         ip = get_hotspot_ip()
         self.log_signal.emit(f"获取到热点 IP: {ip}")
         self.ip_fetched.emit(ip)
