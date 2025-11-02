@@ -433,11 +433,17 @@ async function showTaskView() {
         });
         closeBtn.onclick = (e) => {
             e.stopPropagation();
-            if (div.id !== 'columnos-iframe') div.remove();
-            card.remove();
+
+            const isActive = div.style.display !== 'none'; // 判断当前是否正在显示
+            if (div.id !== 'columnos-iframe') div.remove(); // 删除 appDiv
+            card.remove(); // 删除任务卡片
+
+            // 如果关闭的是当前显示的应用，切换到主 iframe
+            if (isActive) switchAppDiv('0');
         };
 
-        if (name=='在线专栏') closeBtn.style.display='none';
+
+        if (name == '在线专栏') closeBtn.style.display = 'none';
 
         card.appendChild(nameSpan);
         card.appendChild(closeBtn);

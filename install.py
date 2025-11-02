@@ -1,4 +1,3 @@
-# 完整脚本（略长，请复制保存为 network_tool_auto_start.py 并以管理员方式运行）
 import sys
 import ctypes
 import threading

@@ -52,6 +52,12 @@
             white-space: pre-wrap;
         }
 
+        .btn-container {
+            display: flex;
+            gap: 12px;
+            margin-top: 12px;
+        }
+
         button {
             padding: 12px 24px;
             font-size: 18px;
@@ -60,7 +66,10 @@
             cursor: pointer;
             background: #1a73e8;
             color: #fff;
-            margin-top: 12px;
+        }
+
+        button:hover {
+            background: #1666c1;
         }
     </style>
 </head>
@@ -70,7 +79,10 @@
         <div id="title">Column<span style="color:#1a73e8;">O</span>S 更新</div>
         <div id="status">检测更新中...</div>
         <div id="update-log" style="display:none;"></div>
-        <button id="update-btn" style="display:none;">更新并安装</button>
+        <div class="btn-container">
+            <button id="update-btn" style="display:none;">更新并安装</button>
+            <button id="recheck-btn">再次检查</button>
+        </div>
     </div>
 
     <script>
@@ -88,6 +100,7 @@
             const statusEl = document.getElementById('status');
             const logEl = document.getElementById('update-log');
             const btnUpdate = document.getElementById('update-btn');
+            const btnRecheck = document.getElementById('recheck-btn');
 
             async function fetchBootJson() {
                 try {
@@ -100,63 +113,70 @@
                 }
             }
 
-            // 获取本地 boot.json
-            let localBoot = null;
-            try {
-                const localBlob = await globalVfs.getFile(bootPath);
-                if (localBlob) {
-                    localBoot = JSON.parse(await localBlob.text());
-                }
-            } catch { }
-
-            const remoteBoot = await fetchBootJson();
-            if (!remoteBoot) return;
-
-            // 显示版本信息
-            const remoteVersion = remoteBoot.versionName || "未知";
-            const updateLog = remoteBoot.updateLog || "无更新日志";
-            logEl.innerText = `版本: ${remoteVersion}\n更新日志:\n${updateLog}`;
-            logEl.style.display = "block";
-
-            // 判断是否需要更新
-            const needUpdate = !localBoot || localBoot.versionName !== remoteVersion;
-            if (!needUpdate) {
-                statusEl.innerText = "已是最新版本";
-                return;
-            }
-
-            statusEl.innerText = "检测到新版本，是否更新？";
-            btnUpdate.style.display = "inline-block";
-
-           
-
-            btnUpdate.onclick = async () => {
-                statusEl.innerText = "正在下载 system.zip...";
+            async function checkUpdate() {
+                statusEl.innerText = "检测更新中...";
                 btnUpdate.style.display = "none";
 
+                // 获取本地 boot.json
+                let localBoot = null;
                 try {
+                    const localBlob = await globalVfs.getFile(bootPath);
+                    if (localBlob) {
+                        localBoot = JSON.parse(await localBlob.text());
+                    }
+                } catch { }
 
-                    await globalVfs.deleteDir(systemDir);
-                    const zipBlob = await ws2blob("/image/system.zip", wsUrl, "application/zip");
-                    console.log(zipBlob);
-                    await globalVfs.setFile("/system.zip", zipBlob);
-                    // 删除旧系统
-                    await globalUtils.unzipFile("/system.zip", systemDir);
+                const remoteBoot = await fetchBootJson();
+                if (!remoteBoot) return;
 
-                    // 保存新的 boot.json
-                    await globalVfs.setFile(bootPath, await ws2blob(bootPath, wsUrl, "application/json"));
-                    globalVfs.deleteFile("/system.zip");
+                // 显示版本信息
+                const remoteVersion = remoteBoot.versionName || "未知";
+                const updateLog = remoteBoot.updateLog || "无更新日志";
+                logEl.innerText = `版本: ${remoteVersion}\n更新日志:\n${updateLog}`;
+                logEl.style.display = "block";
 
-                    statusEl.innerText = "更新完成，刷新页面应用新版本";
-                    const btnReload = document.createElement('button');
-                    btnReload.innerText = "刷新";
-                    btnReload.onclick = () => window.top.location.reload();
-                    overlay.appendChild(btnReload);
-
-                } catch (err) {
-                    statusEl.innerText = "更新失败: " + err.message;
-                    console.error(err);
+                // 判断是否需要更新
+                const needUpdate = !localBoot || localBoot.versionName !== remoteVersion;
+                if (!needUpdate) {
+                    statusEl.innerText = "已是最新版本";
+                    return;
                 }
+
+                statusEl.innerText = "检测到新版本，是否更新？";
+                btnUpdate.style.display = "inline-block";
+
+                btnUpdate.onclick = async () => {
+                    statusEl.innerText = "正在下载 system.zip...";
+                    btnUpdate.style.display = "none";
+
+                    try {
+                        await globalVfs.deleteDir(systemDir);
+                        const zipBlob = await ws2blob("/image/system.zip", wsUrl, "application/zip");
+                        await globalVfs.setFile("/system.zip", zipBlob);
+
+                        await globalUtils.unzipFile("/system.zip", systemDir);
+
+                        await globalVfs.setFile(bootPath, await ws2blob(bootPath, wsUrl, "application/json"));
+                        globalVfs.deleteFile("/system.zip");
+
+                        statusEl.innerText = "更新完成，刷新页面应用新版本";
+                        const btnReload = document.createElement('button');
+                        btnReload.innerText = "刷新";
+                        btnReload.onclick = () => window.top.location.reload();
+                        overlay.appendChild(btnReload);
+                    } catch (err) {
+                        statusEl.innerText = "更新失败: " + err.message;
+                        console.error(err);
+                    }
+                };
+            }
+
+            // 页面加载时先检测一次
+            await checkUpdate();
+
+            // 再次检查按钮绑定事件
+            btnRecheck.onclick = async () => {
+                await checkUpdate();
             };
         })();
     </script>
