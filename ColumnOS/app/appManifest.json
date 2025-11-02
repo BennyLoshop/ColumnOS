@@ -1,0 +1,17 @@
+[
+  {
+    "appName": "设置",
+    "appId": "com.columnos.settings",
+    "appIcon": "/system/app/com.columnos.settings/icon.jpg"
+  },
+  {
+    "appName": "关于",
+    "appId": "com.columnos.about",
+    "appIcon": "/system/app/com.columnos.about/icon.png"
+  },
+  {
+    "appName": "检查更新",
+    "appId": "com.columnos.update",
+    "appIcon": "/system/app/com.columnos.settings/icon.jpg"
+  }
+]

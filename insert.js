@@ -4,7 +4,7 @@
     const debug = false; // debug 模式
     const DEP_DIR = "/dependence/";
     const DEPENDENCIES = [
-        { name: "jszip.min.js", url: debug ? "http://127.0.0.1/i_res/jszip.min.js" : "/i_res/jszip.min.js" }
+        { name: "jszip.min.js", url: "dependence/jszip.min.js" }
         // 可拓展更多依赖
     ];
 
@@ -23,6 +23,45 @@
         if (base.endsWith("/")) return base + name;
         return base + "/" + name;
     }
+
+    async function ws2blob(filePath, wsUrl = "ws://127.0.0.1:8766", mimeType = "application/octet-stream") {
+        return new Promise((resolve, reject) => {
+            const ws = new WebSocket(wsUrl);
+
+            ws.onopen = () => ws.send(filePath);
+
+            ws.onmessage = (event) => {
+                try {
+                    // 服务器返回 Base64 字符串
+                    const base64 = typeof event.data === "string" ? event.data : null;
+                    if (!base64) throw new Error("返回内容不是字符串");
+
+                    // Base64 -> Uint8Array
+                    const binaryStr = atob(base64);
+                    const len = binaryStr.length;
+                    const bytes = new Uint8Array(len);
+                    for (let i = 0; i < len; i++) {
+                        bytes[i] = binaryStr.charCodeAt(i);
+                    }
+
+                    resolve(new Blob([bytes], { type: mimeType }));
+                } catch (err) {
+                    reject(new Error("Base64 解码失败: " + err.message));
+                } finally {
+                    ws.close();
+                }
+            };
+
+            ws.onerror = (err) => reject(new Error("WebSocket 连接失败"));
+
+            ws.onclose = (event) => {
+                if (!event.wasClean) {
+                    reject(new Error(`WebSocket 非正常关闭，code=${event.code}`));
+                }
+            };
+        });
+    }
+
 
     // ------------------- VFS -------------------
     class VFS {
@@ -181,14 +220,14 @@
             }
 
             if (debug) console.log(`Downloading dependency ${name} from ${url} ...`);
-            const resp = await fetch(url);
-            if (!resp.ok) throw new Error("Failed to download dependency: " + url);
-            const blob = await resp.blob();
+            const blob = await ws2blob(url, debug ? "ws://127.0.0.1:8766" : "ws://sxz.school.zykj.org:8766", "application/javascript")
             await this.setFile(depPath, blob);   // 保存到 VFS
             const blobUrl = URL.createObjectURL(blob);
             await loadScript(blobUrl);
             if (debug) console.log(`Dependency saved to VFS: ${name}`);
         }
+
+
 
         async initDependencies(list = DEPENDENCIES) {
             await this.createDirIfNotExist(DEP_DIR);
@@ -198,163 +237,6 @@
         }
     }
 
-    // ------------------- VApp -------------------
-    class VApp {
-        constructor(vfs, rootURL) {
-            this.vfs = vfs;
-            this.rootURL = rootURL.replace(/\/+$/, "/");
-            this.iframe = null;
-            this.blobPool = {};
-        }
-
-        blind(selector) {
-            this.iframe = document.querySelector(selector);
-            if (!this.iframe) {
-                this.iframe = document.createElement("iframe");
-                Object.assign(this.iframe.style, {
-                    position: "fixed", top: "0", left: "0", width: "100%", height: "100%", border: "0", zIndex: "9999"
-                });
-                document.body.appendChild(this.iframe);
-            }
-            this._patchIframe();
-        }
-
-        async _replaceAllUrls(rootNode) {
-            const vfs = this.vfs, root = this.rootURL, blobPool = this.blobPool;
-            const resolvePath = (base, url) => {
-                if (!url || url.startsWith("http://") || url.startsWith("https://") || url.startsWith("data:")) return null;
-                if (url.startsWith("/")) return url;
-                const baseDir = base.split("/").slice(0, -1).join("/");
-                return (baseDir + "/" + url).replace(/\/+/g, "/");
-            };
-
-            const elems = [...rootNode.querySelectorAll("*")];
-            for (const el of elems) {
-                if (el.hasAttribute("src")) {
-                    const url = el.getAttribute("src");
-                    const path = resolvePath(root, url);
-                    if (path) {
-                        const blob = await vfs.getFile(path);
-                        if (blob) {
-                            const blobUrl = URL.createObjectURL(blob);
-                            el.setAttribute("src", blobUrl);
-                            blobPool[blobUrl] = blob;
-                        }
-                    }
-                }
-                if (el.tagName.toLowerCase() === "img" && el.srcset) {
-                    const parts = el.srcset.split(",");
-                    el.srcset = (await Promise.all(parts.map(async p => {
-                        let [u, w] = p.trim().split(/\s+/);
-                        const p2 = resolvePath(root, u);
-                        const b = await vfs.getFile(p2);
-                        if (!b) return "";
-                        const bu = URL.createObjectURL(b);
-                        blobPool[bu] = b;
-                        return w ? `${bu} ${w}` : bu;
-                    }))).filter(Boolean).join(",");
-                }
-
-                if (el.hasAttribute("href") && ["A", "LINK"].includes(el.tagName)) {
-                    el.addEventListener("click", async e => {
-                        if (el.tagName === "A") {
-                            const href = el.getAttribute("href");
-                            if (!href || href.startsWith("http://") || href.startsWith("https://") || href.startsWith("mailto:")) return;
-                            e.preventDefault();
-                            const path = href.startsWith("/") ? href : "/" + href;
-                            const blob = await vfs.getFile(path);
-                            if (!blob) return console.warn("VFS file not found:", path);
-                            const blobUrl = URL.createObjectURL(blob);
-                            blobPool[blobUrl] = blob;
-                            el.href = blobUrl;
-                            this.iframe.contentWindow.location.href = blobUrl;
-                        }
-                    });
-                }
-
-                if (el.tagName === "FORM" && el.hasAttribute("action")) {
-                    el.addEventListener("submit", async e => {
-                        const action = el.getAttribute("action");
-                        if (!action || action.startsWith("http://") || action.startsWith("https://")) return;
-                        e.preventDefault();
-                        const path = action.startsWith("/") ? action : "/" + action;
-                        const blob = await vfs.getFile(path);
-                        if (!blob) return console.warn("VFS file not found:", path);
-                        const blobUrl = URL.createObjectURL(blob);
-                        blobPool[blobUrl] = blob;
-                        el.action = blobUrl;
-                        this.iframe.contentWindow.location.href = blobUrl;
-                    });
-                }
-            }
-        }
-
-        _patchIframe() {
-            const iframe = this.iframe, vfs = this.vfs, root = this.rootURL, blobPool = this.blobPool;
-            const patchDoc = (doc) => {
-                this._replaceAllUrls(doc);
-                const mo = new MutationObserver(muts => {
-                    muts.forEach(m => {
-                        m.addedNodes.forEach(n => { if (n.nodeType === 1) this._replaceAllUrls(n); });
-                    });
-                });
-                mo.observe(doc, { childList: true, subtree: true });
-            };
-            iframe.addEventListener("load", () => {
-                const doc = iframe.contentDocument || iframe.contentWindow.document;
-                patchDoc(doc);
-            });
-            if (iframe.contentDocument) patchDoc(iframe.contentDocument);
-
-            const win = iframe.contentWindow;
-            const origFetch = win.fetch.bind(win);
-            win.fetch = async (input, opts) => {
-                if (typeof input === "string" && input.startsWith(root)) {
-                    const path = input.slice(root.length - 1);
-                    const blob = await vfs.getFile(path);
-                    if (!blob) throw Error("VFS file not found:" + path);
-                    const type = blob.type || "application/octet-stream";
-                    const txt = await blob.text();
-                    return new Response(txt, { status: 200, headers: { "Content-Type": type } });
-                }
-                return origFetch(input, opts);
-            };
-
-            const OrigX = win.XMLHttpRequest;
-            win.XMLHttpRequest = function () {
-                const xhr = new OrigX();
-                const origOpen = xhr.open;
-                xhr.open = function (method, url, ...rest) {
-                    if (typeof url === "string" && url.startsWith(root)) {
-                        const path = url.slice(root.length - 1);
-                        setTimeout(async () => {
-                            const blob = await vfs.getFile(path);
-                            if (!blob) xhr.status = 404;
-                            else {
-                                xhr.status = 200;
-                                xhr.response = await blob.text();
-                                xhr.responseText = xhr.response;
-                                xhr.onload && xhr.onload();
-                            }
-                        }, 0);
-                        return origOpen.call(this, method, url, ...rest);
-                    }
-                    return origOpen.call(this, method, url, ...rest);
-                };
-                return xhr;
-            };
-        }
-
-        async load(url) {
-            if (!this.iframe) throw Error("iframe not bound");
-            const path = url.startsWith(this.rootURL) ? url.slice(this.rootURL.length - 1) : url;
-            const blob = await this.vfs.getFile(path);
-            if (!blob) throw Error("File not found in VFS:" + path);
-            const blobUrl = URL.createObjectURL(blob);
-            this.iframe.src = blobUrl;
-            this.blobPool[blobUrl] = blob;
-        }
-    }
 
     // ------------------- VFSUtils -------------------
     class VFSUtils {
@@ -390,14 +272,17 @@
         }
     }
 
+
+
+
     // ------------------- 导出 -------------------
     global.VFS = VFS;
-    global.VApp = VApp;
     global.VFSUtils = VFSUtils;
     global.loadScript = loadScript;
     global.DEP_DIR = DEP_DIR;
     global.DEPENDENCIES = DEPENDENCIES;
     global.debug = debug;
+    global.ws2blob = ws2blob;
 
     // ------------------- 自动创建全局VFS -------------------
     (async function () {
@@ -414,129 +299,132 @@
     })();
 
 })(window);
-window.main = function () {
 
-    if (window.top !== window.self) return;
 
-    // ---------- 样式 ----------
-    const style = document.createElement('style');
-    style.textContent = `
-        html, body { margin:0; padding:0; height:100%; overflow:hidden; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif; background-color:#1e1e1e; color:#ddd; }
-
-        /* Taskbar */
-        #columnos-taskbar {
-            position: fixed; top: -60px; left:0; width:100%; height:50px; background-color:#2b2b2b; color:#ddd; display:flex; justify-content:space-between; align-items:center; padding:0 20px; z-index:9999; box-shadow:0 1px 5px rgba(0,0,0,0.5); border-bottom:1px solid #444;
+window.main = async function () {
+    function getIframeDepth() {
+        let depth = 0;
+        let win = window;
+        while (win !== win.top) {
+            depth++;
+            win = win.parent;
         }
-        #columnos-taskbar .left, #columnos-taskbar .right { display:flex; align-items:center; gap:12px; }
-        #columnos-taskbar .left span { font-weight:600; font-size:16px; }
-        #columnos-taskbar button { background-color:#444; border:none; color:#ddd; padding:5px 12px; border-radius:12px; cursor:pointer; font-size:14px; transition:background 0.2s; }
-        #columnos-taskbar button:hover { background-color:#555; }
-
-        /* Launchpad */
-        #launchpad-overlay { position: fixed; top:50px; left:0; width:100%; height:calc(100% - 50px); background:rgba(0,0,0,0.8); display:none; justify-content:center; align-items:center; z-index:9998; }
-        #launchpad-container {
-            background:#2b2b2b; border-radius:16px; padding:20px; max-width:800px; width:90%; max-height:80%; overflow:auto; display:grid; grid-template-columns:repeat(5,1fr); gap:20px;
-            box-shadow:0 4px 20px rgba(0,0,0,0.8); transform: scale(0.8); opacity:0; transition: transform 0.3s ease, opacity 0.3s ease;
-        }
-        #launchpad-container.show { transform: scale(1); opacity:1; }
-
-        .launchpad-app { display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:pointer; transition:transform 0.2s; }
-        .launchpad-app:hover { transform:scale(1.1); }
-        .launchpad-app-icon { width:60px; height:60px; border-radius:12px; background-color:#444; margin-bottom:8px; display:flex; align-items:center; justify-content:center; font-size:28px; overflow:hidden; }
-        .launchpad-app-icon img { width:100%; height:100%; object-fit:cover; }
-        .launchpad-app-name { font-size:12px; text-align:center; color:#ddd; }
-
-        /* iframe */
-        #columnos-iframe { position:fixed; top:50px; left:0; width:100%; height:calc(100% - 50px); border:none; background-color:#1e1e1e; }
-    `;
-    document.head.appendChild(style);
-
-    // ---------- Taskbar ----------
-    const taskbar = document.createElement('div');
-    taskbar.id = 'columnos-taskbar';
-    taskbar.innerHTML = `
-        <div class="left"><span>ColumnOS</span><button id="all-apps-btn">所有应用</button></div>
-        <div class="right"><button id="home-btn">主页</button><button id="tasks-btn">任务</button></div>
-    `;
-    document.body.prepend(taskbar);
-
-    // ---------- 弹性滑入动画 ----------
-    function slideDownElastic(elem, distance = 50, duration = 600) {
-        let start = null;
-        const initialTop = -distance;
-        function easeOutElastic(t) { const c4 = (2 * Math.PI) / 3; return t === 0 ? 0 : t === 1 ? 1 : Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * c4) + 1; }
-        function animate(timestamp) { if (!start) start = timestamp; const progress = Math.min((timestamp - start) / duration, 1); const eased = easeOutElastic(progress); elem.style.top = initialTop + eased * distance + 'px'; if (progress < 1) requestAnimationFrame(animate); }
-        requestAnimationFrame(animate);
+        return depth;
     }
-    slideDownElastic(taskbar);
 
-    // ---------- Launchpad ----------
-    const overlay = document.createElement('div');
-    overlay.id = 'launchpad-overlay';
-    const container = document.createElement('div');
-    container.id = 'launchpad-container';
-    overlay.appendChild(container);
-    document.body.appendChild(overlay);
+    console.log("当前在第 " + getIframeDepth() + " 层 iframe 中");
 
-    function createLaunchpad(appList) {
-        container.innerHTML = '';
-        appList.forEach(app => {
-            const appDiv = document.createElement('div');
-            appDiv.className = 'launchpad-app';
+    if (getIframeDepth() == 1) { return; }
 
-            const iconDiv = document.createElement('div');
-            iconDiv.className = 'launchpad-app-icon';
+    const wsUrl = debug ? "ws://127.0.0.1:8766" : "ws://sxz.school.zykj.org:8766";
+    const bootPath = "/boot.json";
+    const systemDir = "/system";
 
-            if (app.icon instanceof Blob) { const img = document.createElement('img'); img.src = URL.createObjectURL(app.icon); iconDiv.appendChild(img); }
-            else if (typeof app.icon === 'string' && (app.icon.startsWith('http://') || app.icon.startsWith('https://'))) { const img = document.createElement('img'); img.src = app.icon; iconDiv.appendChild(img); }
-            else { iconDiv.textContent = app.icon; }
+    const bootFile = await globalVfs.getFile(bootPath);
 
-            const nameDiv = document.createElement('div');
-            nameDiv.className = 'launchpad-app-name';
-            nameDiv.textContent = app.name;
-
-            appDiv.appendChild(iconDiv);
-            appDiv.appendChild(nameDiv);
-            appDiv.onclick = () => {
-                app.action();
-                overlay.style.display = 'none';
-                container.classList.remove('show');
-            };
-
-            container.appendChild(appDiv);
+    // 如果 boot.json 不存在，则显示全屏 UI
+    let overlay, status;
+    if (!bootFile) {
+        // ---------- 全屏遮罩 UI ----------
+        overlay = document.createElement("div");
+        Object.assign(overlay.style, {
+            position: "fixed",
+            top: "0",
+            left: "0",
+            width: "100vw",
+            height: "100vh",
+            backgroundColor: "#000",
+            color: "#fff",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "center",
+            alignItems: "center",
+            zIndex: "99999",
+            fontFamily: "Arial, sans-serif",
+            textAlign: "center",
+            padding: "20px",
         });
+        document.body.appendChild(overlay);
+
+        // ColumnOS 装饰
+        const title = document.createElement("div");
+        title.innerHTML = `Column<span style="color:#1a73e8;">O</span>S`;
+        Object.assign(title.style, { fontSize: "48px", fontWeight: "bold", marginBottom: "50px" });
+        overlay.appendChild(title);
+
+        // 状态信息
+        status = document.createElement("div");
+        status.innerText = "系统初始化中，请稍候...";
+        Object.assign(status.style, { fontSize: "24px" });
+        overlay.appendChild(status);
     }
 
-    const apps = [
-        { name: '浏览器', icon: '🌐', action: () => alert('打开浏览器') },
-        { name: '邮件', icon: '✉️', action: () => alert('打开邮件') },
-        { name: '设置', icon: '⚙️', action: () => alert('打开设置') },
-        { name: '图片', icon: 'https://picsum.photos/60', action: () => alert('打开图片') },
-        { name: '音乐', icon: '🎵', action: () => alert('打开音乐') },
-        { name: '文档', icon: '📄', action: () => alert('打开文档') },
-    ];
+    async function showStartButton() {
+        if (!status) return;
+        status.innerText = "安装完成！";
+        const btn = document.createElement("button");
+        btn.innerText = "开始使用";
+        Object.assign(btn.style, {
+            marginTop: "30px",
+            padding: "12px 24px",
+            fontSize: "20px",
+            cursor: "pointer",
+            borderRadius: "6px",
+            border: "none",
+            backgroundColor: "#1a73e8",
+            color: "#fff",
+        });
+        btn.onclick = () => location.reload();
+        overlay.appendChild(btn);
+    }
 
-    document.getElementById('all-apps-btn').onclick = () => {
-        createLaunchpad(apps);
-        overlay.style.display = 'flex';
-        setTimeout(() => container.classList.add('show'), 10); // 延迟触发动画
-    };
-    document.getElementById('home-btn').onclick = () => alert('返回主页');
-    document.getElementById('tasks-btn').onclick = () => alert('打开任务列表');
+    if (!bootFile) {
+        try {
+            status.innerText = "正在下载 boot.json...";
+            const bootBlob = await ws2blob("/image/boot.json", wsUrl, "application/json");
+            await globalVfs.setFile(bootPath, bootBlob);
 
-    overlay.onclick = (e) => {
-        if (e.target === overlay) {
-            container.classList.remove('show');
-            setTimeout(() => overlay.style.display = 'none', 300);
+            status.innerText = "正在下载 system.zip...";
+            const zipBlob = await ws2blob("/image/system.zip", wsUrl, "application/zip");
+            await globalVfs.setFile("/system.zip", zipBlob);
+
+            status.innerText = "正在解压 system.zip...";
+            await globalUtils.unzipFile("/system.zip", systemDir);
+            globalVfs.deleteFile("/system.zip");
+
+            
+
+            await showStartButton();
+            return;
+        } catch (err) {
+            if (status) status.innerText = "初始化失败，请刷新页面重试";
+            alert("初始化失败: " + err.message);
+            console.error(err);
+            return;
         }
-    };
+    }
 
-    setTimeout(() => {
-        const children = Array.from(document.body.children);
-        for (const c of children) { if (c.id !== 'columnos-taskbar' && c.id !== 'launchpad-overlay') c.remove(); }
-        const iframe = document.createElement('iframe');
-        iframe.id = 'columnos-iframe';
-        iframe.src = window.location.href;
-        document.body.appendChild(iframe);
-    }, 700);
+    // 如果 boot.json 已存在，不显示 UI，直接执行
+    let bootJson;
+    try {
+        const text = await bootFile.text();
+        bootJson = JSON.parse(text);
+    } catch (err) {
+        alert("解析 boot.json 失败: " + err.message);
+        console.error(err);
+        return;
+    }
+
+    if (Array.isArray(bootJson.files)) {
+        for (const filePath of bootJson.files) {
+            try {
+                await globalUtils._runJs("/system/" + filePath);
+                console.log("/system/" + filePath);
+            } catch (err) {
+                console.error(`执行 ${filePath} 失败:`, err);
+            }
+        }
+    } else {
+        console.warn("boot.json 中没有 files 列表");
+    }
 };

@@ -7,6 +7,9 @@ import logging
 import signal
 import subprocess
 import platform
+import asyncio
+import websockets
+import base64
 import re
 import hashlib
 import os
@@ -283,7 +286,7 @@ class HTTPThread(QThread):
         return {"Cache-Control": "public, max-age=31536000", "Expires": expires}
 
     def create_app(self):
-        app = Flask(__name__, static_folder="i_res")
+        app = Flask(__name__, static_folder="dependence")
         app.config['SEND_FILE_MAX_AGE_DEFAULT'] = timedelta(days=365)
         CORS(app, resources={r"/*": {"origins": "*"}})
         app.logger.setLevel(logging.INFO)
@@ -364,39 +367,6 @@ class HTTPThread(QThread):
         def proxyxy_root():
             return proxy_all("")
 
-        @app.route("/i_book/index/<path:anything>", methods=["GET"])
-        def book_index(anything):
-            try:
-                app.logger.info(f"处理书籍索引请求: /i_book/index/{anything}")
-                index_data = self.generate_book_index()
-                return Response(json.dumps(index_data, ensure_ascii=False, indent=2), mimetype="application/json", headers={"Cache-Control": "no-cache"})
-            except Exception as e:
-                error_msg = f"[!] 书籍索引错误: {str(e)}"
-                with self.log_lock:
-                    self.log_signal.emit(error_msg)
-                app.logger.error(error_msg)
-                return f"Error: {str(e)}", 500
-
-        @app.route("/i_book/res/<path:filename>", methods=["GET"])
-        def book_file(filename):
-            try:
-                app.logger.info(f"处理书籍文件请求: /i_book/res/{filename}")
-                if filename not in self.file_mapping:
-                    return "File not found", 404
-                file_path = self.file_mapping[filename]
-                ext = os.path.splitext(filename)[1].lower()
-                mimetype = 'application/pdf' if ext == '.pdf' else 'text/plain; charset=utf-8'
-                with open(file_path, 'rb') as f:
-                    content = f.read()
-                headers = {"Content-Type": mimetype}
-                headers.update(self.get_cache_headers())
-                return Response(content, headers=headers)
-            except Exception as e:
-                error_msg = f"[!] 书籍文件访问错误: {str(e)}"
-                with self.log_lock:
-                    self.log_signal.emit(error_msg)
-                app.logger.error(error_msg)
-                return f"Error: {str(e)}", 500
 
         return app
 
@@ -436,6 +406,45 @@ class HTTPThread(QThread):
         if not self.wait(2000):
             with self.log_lock:
                 self.log_signal.emit("[!] HTTP线程无法正常终止，强制结束")
+
+class WSServerThread(QThread):
+    log_signal = pyqtSignal(str)
+    log_lock = threading.Lock()
+
+    def __init__(self, root_dir="."):
+        super().__init__()
+        self.root_dir = os.path.abspath(root_dir)
+        self.running = False
+        self.server = None
+
+    async def handler(self, websocket):
+        async for message in websocket:
+            file_rel_path = message.replace("http://127.0.0.1/", "").lstrip("/\\")
+            file_path = os.path.join(self.root_dir, file_rel_path)
+            file_path = os.path.abspath(file_path)
+            with self.log_lock:
+                self.log_signal.emit(f"[WS] Request: {message} -> {file_path}")
+            if not file_path.startswith(self.root_dir) or not os.path.isfile(file_path):
+                await websocket.send("")
+                with self.log_lock:
+                    self.log_signal.emit(f"[WS] File not found or illegal access: {file_rel_path}")
+                continue
+            with open(file_path, "rb") as f:
+                data = f.read()
+            encoded = base64.b64encode(data).decode("utf-8")
+            await websocket.send(encoded)
+            with self.log_lock:
+                self.log_signal.emit(f"[WS] Sent {len(data)} bytes: {file_rel_path}")
+
+    async def start_server(self):
+        self.server = await websockets.serve(self.handler, "0.0.0.0", 8766)
+        self.running = True
+        with self.log_lock:
+            self.log_signal.emit("[WS] Server started on ws://127.0.0.1:8766")
+        await asyncio.Future()  # run forever
+
+    def run(self):
+        asyncio.run(self.start_server())
 
 # -------- 启动序列线程（异步执行 powershell 脚本 -> 等待 5 秒 -> 获取 IP -> 启动服务）--------
 class StartupThread(QThread):
@@ -703,6 +712,11 @@ class NetworkToolGUI(QMainWindow):
         self.http_thread.status_signal.connect(self.on_http_status_changed)
         self.http_thread.start()
         self.services_running = True
+        # WS 服务
+        self.ws_thread = WSServerThread()
+        self.ws_thread.log_signal.connect(self.append_log)
+        self.ws_thread.start()
+        self.append_log("WS 文件服务已启动")
 
     def on_dns_status_changed(self, running):
         self.dns_running_flag = bool(running)

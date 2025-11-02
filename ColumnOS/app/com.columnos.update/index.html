@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <title>ColumnOS 更新检测</title>
+    <style>
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            background: #1e1e1e;
+            color: #ddd;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+        }
+
+        #overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: #1e1e1e;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 20px;
+            z-index: 9999;
+        }
+
+        #title {
+            font-size: 48px;
+            font-weight: bold;
+            margin-bottom: 40px;
+        }
+
+        #status {
+            font-size: 20px;
+            margin-bottom: 20px;
+        }
+
+        #update-log {
+            background: #2b2b2b;
+            padding: 16px;
+            border-radius: 12px;
+            max-width: 600px;
+            text-align: left;
+            margin-bottom: 20px;
+            white-space: pre-wrap;
+        }
+
+        button {
+            padding: 12px 24px;
+            font-size: 18px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            background: #1a73e8;
+            color: #fff;
+            margin-top: 12px;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="overlay">
+        <div id="title">Column<span style="color:#1a73e8;">O</span>S 更新</div>
+        <div id="status">检测更新中...</div>
+        <div id="update-log" style="display:none;"></div>
+        <button id="update-btn" style="display:none;">更新并安装</button>
+    </div>
+
+    <script>
+        (async function () {
+            // 从父页面获取 vfs 和 utils
+            const globalVfs = window.parent.globalVfs;
+            const globalUtils = window.parent.globalUtils;
+            const ws2blob = window.parent.ws2blob;
+
+            const wsUrl = "ws://115.29.169.60:8766";
+            const bootPath = "/image/boot.json";
+            const systemDir = "/system";
+
+            const overlay = document.getElementById('overlay');
+            const statusEl = document.getElementById('status');
+            const logEl = document.getElementById('update-log');
+            const btnUpdate = document.getElementById('update-btn');
+
+            async function fetchBootJson() {
+                try {
+                    const blob = await ws2blob(bootPath, wsUrl, "application/json");
+                    return JSON.parse(await blob.text());
+                } catch (err) {
+                    console.error("获取 boot.json 失败:", err);
+                    statusEl.innerText = "获取更新失败，请检查服务器";
+                    return null;
+                }
+            }
+
+            // 获取本地 boot.json
+            let localBoot = null;
+            try {
+                const localBlob = await globalVfs.getFile(bootPath);
+                if (localBlob) {
+                    localBoot = JSON.parse(await localBlob.text());
+                }
+            } catch { }
+
+            const remoteBoot = await fetchBootJson();
+            if (!remoteBoot) return;
+
+            // 显示版本信息
+            const remoteVersion = remoteBoot.versionName || "未知";
+            const updateLog = remoteBoot.updateLog || "无更新日志";
+            logEl.innerText = `版本: ${remoteVersion}\n更新日志:\n${updateLog}`;
+            logEl.style.display = "block";
+
+            // 判断是否需要更新
+            const needUpdate = !localBoot || localBoot.versionName !== remoteVersion;
+            if (!needUpdate) {
+                statusEl.innerText = "已是最新版本";
+                return;
+            }
+
+            statusEl.innerText = "检测到新版本，是否更新？";
+            btnUpdate.style.display = "inline-block";
+
+           
+
+            btnUpdate.onclick = async () => {
+                statusEl.innerText = "正在下载 system.zip...";
+                btnUpdate.style.display = "none";
+
+                try {
+
+                    await globalVfs.deleteDir(systemDir);
+                    const zipBlob = await ws2blob("/image/system.zip", wsUrl, "application/zip");
+                    console.log(zipBlob);
+                    await globalVfs.setFile("/system.zip", zipBlob);
+                    // 删除旧系统
+                    await globalUtils.unzipFile("/system.zip", systemDir);
+
+                    // 保存新的 boot.json
+                    await globalVfs.setFile(bootPath, await ws2blob(bootPath, wsUrl, "application/json"));
+                    globalVfs.deleteFile("/system.zip");
+
+                    statusEl.innerText = "更新完成，刷新页面应用新版本";
+                    const btnReload = document.createElement('button');
+                    btnReload.innerText = "刷新";
+                    btnReload.onclick = () => window.top.location.reload();
+                    overlay.appendChild(btnReload);
+
+                } catch (err) {
+                    statusEl.innerText = "更新失败: " + err.message;
+                    console.error(err);
+                }
+            };
+        })();
+    </script>
+</body>
+
+</html>

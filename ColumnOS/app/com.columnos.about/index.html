@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>About ColumnOS</title>
+<style>
+    html, body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        background-color: #1e1e1e; /* 深灰背景 */
+        color: #ddd;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .container {
+        max-width: 600px;
+        text-align: center;
+        padding: 20px;
+        border-radius: 12px;
+        background-color: #2b2b2b;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+    }
+
+    h1 {
+        font-size: 32px;
+        margin-bottom: 12px;
+    }
+
+    p {
+        font-size: 16px;
+        line-height: 1.5;
+        margin-bottom: 20px;
+        color: #ccc;
+    }
+
+    a {
+        color: #4aa3ff;
+        text-decoration: none;
+        transition: color 0.2s;
+    }
+
+    a:hover {
+        color: #82c0ff;
+    }
+
+    button {
+        background-color: #444;
+        color: #ddd;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 12px;
+        cursor: pointer;
+        font-size: 14px;
+        transition: background 0.2s;
+    }
+
+    button:hover {
+        background-color: #555;
+    }
+</style>
+</head>
+<body>
+
+<div class="container">
+    <h1>ColumnOS</h1>
+    <p>Version 1.0.0<br>
+       ColumnOS 是一个运行在在线专栏里的WebOS，可拓展，部署简便，纯本地。<br>
+       你可以在这里使用丰富的应用和功能。</p>
+    <button onclick="closeIframe()">返回桌面</button>
+</div>
+
+<script>
+    // 关闭 iframe 页面
+    function closeIframe() {
+        if (window.parent && window.parent !== window) {
+            // 调用父窗口方法切换回主页
+            if (window.parent.switchAppDiv) {
+                window.parent.switchAppDiv("0");
+            }
+        }
+    }
+</script>
+
+</body>
+</html>

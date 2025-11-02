@@ -1,0 +1,10 @@
+{
+  "versionName": "1.2.4",
+  "updateLog": "【新增】支持多应用同时运行\n【优化】提升系统启动速度\n【修复】修复部分界面渲染问题",
+  "files": [
+    "src/html2canvas.min.js",
+    "VAppHost.js",
+    "UICore.js",
+    "ColumnOS.js"
+  ]
+}
