@@ -1,1 +1,1 @@
-python -m nuitka --standalone  --windows-disable-console --enable-plugin=pyqt6 --windows-icon-from-ico=icon.ico --output-dir=dist install.py
+python -m nuitka --standalone  --enable-plugin=pyqt6 --windows-icon-from-ico=icon.ico --output-dir=dist install.py --windows-uac-admin --include-module=websockets.asyncio --include-module=websockets.asyncio.server --include-module=websockets.asyncio.client
