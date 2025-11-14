@@ -10,7 +10,7 @@
 </head>
 <body>
     <h1>WebSocket 连接测试</h1>
-    <p>目标地址: <code>ws://115.29.169.60:6789</code></p>
+    <p>目标地址: <code>ws://sxz.school.zykj.org.loshop.com.cn:8766</code></p>
     <p>连接状态: <span id="status">未连接</span></p>
     <button id="checkBtn">测试连接</button>
 
@@ -22,7 +22,7 @@
             statusEl.textContent = "正在连接...";
             
             try {
-                const ws = new WebSocket("ws://loshop.com.cn:8766");
+                const ws = new WebSocket("ws://sxz.school.zykj.org.loshop.com.cn:8766");
 
                 ws.onopen = () => {
                     statusEl.textContent = "✅ 连接成功";

@@ -13,5 +13,10 @@
     "appName": "检查更新",
     "appId": "com.columnos.update",
     "appIcon": "/system/app/com.columnos.update/icon.png"
+  },
+  {
+    "appName": "Minecraft",
+    "appId": "com.columnos.test.mc",
+    "appIcon": "/system/app/com.columnos.test.mc/icon.png"
   }
 ]

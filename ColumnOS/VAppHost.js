@@ -137,16 +137,16 @@
             // 拦截 fetch
             const win = this.iframe.contentWindow;
             const origFetch = win.fetch.bind(win);
-            win.fetch = async (input, opts) => {
-                if (typeof input === "string") {
-                    const path = input.startsWith("/") ? this.vfsRoot + input.slice(1) : this.vfsRoot + input;
-                    const blob = await this.vfs.getFile(path);
-                    if (!blob) return new Response(null, { status: 404 });
-                    const text = await blob.text();
-                    return new Response(text, { status: 200, headers: { "Content-Type": blob.type || "text/plain" } });
-                }
-                return origFetch(input, opts);
-            };
+            // win.fetch = async (input, opts) => {
+            //     if (typeof input === "string") {
+            //         const path = input.startsWith("/") ? this.vfsRoot + input.slice(1) : this.vfsRoot + input;
+            //         const blob = await this.vfs.getFile(path);
+            //         if (!blob) return new Response(null, { status: 404 });
+            //         const text = await blob.text();
+            //         return new Response(text, { status: 200, headers: { "Content-Type": blob.type || "text/plain" } });
+            //     }
+            //     return origFetch(input, opts);
+            // };
 
             // 拦截 XHR
             const OrigX = win.XMLHttpRequest;
