@@ -1,0 +1,91 @@
+body, html {
+    margin: 0; padding: 0; height: 100%; font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+    background-color: #1e1e1e;
+    color: #ddd;
+    display: flex; overflow: hidden;
+}
+
+/* 左侧分类栏 */
+#settings-categories {
+    width: 240px; /* 固定宽度 */
+    background: #2b2b2b;
+    border-right: 1px solid #444;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0; /* 避免收缩 */
+    box-sizing: border-box;
+}
+
+.category-item {
+    padding: 16px 12px;
+    cursor: pointer;
+    border-bottom: 1px solid #333;
+    transition: background 0.2s;
+    box-sizing: border-box;
+}
+
+.category-item:hover, .category-item.active {
+    background-color: #3c3c3c;
+}
+
+/* 右侧设置内容 */
+#settings-content {
+    flex: 1 1 auto; /* 占满剩余空间 */
+    padding: 20px;
+    overflow-y: auto;
+    background: #1e1e1e;
+    box-sizing: border-box; /* 防止 padding 导致额外空间 */
+}
+
+/* 通用输入框 */
+input[type="password"], input[type="text"] {
+    padding: 10px;
+    width: 100%;
+    max-width: 300px;
+    margin-top: 8px;
+    margin-bottom: 12px;
+    border-radius: 6px;
+    border: 1px solid #555;
+    font-size: 16px;
+    background: #2b2b2b;
+    color: #fff;
+}
+
+input::placeholder { color: #888; }
+
+button {
+    padding: 10px 16px;
+    border: none;
+    border-radius: 6px;
+    background-color: #1a73e8;
+    color: #fff;
+    font-size: 16px;
+    cursor: pointer;
+    margin-top: 8px;
+}
+
+button:disabled {
+    background-color: #555;
+    cursor: not-allowed;
+}
+
+h2 { margin-top: 0; }
+
+/* 移动端自适应 */
+@media (max-width: 600px) {
+    body { flex-direction: column; }
+    #settings-categories {
+        width: 100%;
+        max-width: 100%;
+        flex-direction: row;
+        overflow-x: auto;
+        border-right: none;
+        border-bottom: 1px solid #444;
+    }
+    .category-item {
+        flex: 1;
+        text-align: center;
+        border-bottom: none;
+        border-right: 1px solid #333;
+    }
+}

@@ -15,5 +15,30 @@ async function autoRefreshAppList(interval = 2000) {
     }
 }
 
+(function () {
+    const fakeJsToJava = {
+        checkUrls: function (urls) {
+            console.log("Fake JsToJava.checkUrls:", urls);
+            return "[]";
+        }
+    };
+
+    function override() {
+        try {
+            Object.defineProperty(window, 'JsToJava', {
+                value: fakeJsToJava,
+                writable: true,        // 仍允许你自己的 setInterval 覆盖
+                configurable: true,    // 允许再次重写
+                enumerable: false
+            });
+        } catch (e) {}
+    }
+
+    // 首次覆盖
+    override();
+
+    // 每 100ms 再覆盖一次
+    setInterval(override, 100);
+})();
 
 autoRefreshAppList(100);//1

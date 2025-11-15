@@ -1,5 +1,89 @@
+window.showUI = function showUI() {
 
+    const taskbar = document.getElementById('columnos-taskbar');
+    const iframe = document.getElementById('columnos-iframe');
 
+    if (!taskbar || !iframe) return;
+
+    // 显示 iframe
+    iframe.style.display = 'block';
+
+    // 显示 taskbar并做弹性滑入动画
+    taskbar.style.display = 'flex';
+    taskbar.style.top = '-60px'; // 初始隐藏位置
+
+    let start = null;
+    const distance = 50;
+    const duration = 600;
+
+    function easeOutElastic(t) {
+        const c4 = (2 * Math.PI) / 3;
+        return t === 0 ? 0 : t === 1 ? 1 : Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * c4) + 1;
+    }
+
+    function animate(timestamp) {
+        if (!start) start = timestamp;
+        const progress = Math.min((timestamp - start) / duration, 1);
+        const eased = easeOutElastic(progress);
+        taskbar.style.top = -distance + eased * distance + 'px';
+        if (progress < 1) requestAnimationFrame(animate);
+    }
+
+    requestAnimationFrame(animate);
+    const children = Array.from(document.body.children);
+    for (const c of children) { if (c.id !== 'columnos-taskbar' && c.id !== 'launchpad-overlay' && c.id !== 'columnos-iframe') c.remove(); }
+};
+window.showTaskbar = function showTaskbar() {
+    const taskbar = document.getElementById('columnos-taskbar');
+    const iframe = document.getElementById('columnos-iframe');
+    if (!taskbar || !iframe) return;
+
+    taskbar.style.display = 'flex';
+    taskbar.style.top = '-60px'; // 初始位置
+
+    // 弹性滑入动画
+    let start = null;
+    const distance = 50;
+    const duration = 600;
+    function easeOutElastic(t) {
+        const c4 = (2 * Math.PI) / 3;
+        return t === 0 ? 0 : t === 1 ? 1 : Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * c4) + 1;
+    }
+    function animate(timestamp) {
+        if (!start) start = timestamp;
+        const progress = Math.min((timestamp - start) / duration, 1);
+        const eased = easeOutElastic(progress);
+        taskbar.style.top = -distance + eased * distance + 'px';
+        if (progress < 1) requestAnimationFrame(animate);
+    }
+    requestAnimationFrame(animate);
+
+    // 调整 iframe 高度
+    iframe.style.top = '50px';
+    iframe.style.height = 'calc(100% - 50px)';
+};
+
+// 隐藏 taskbar 并切换主页
+window.hideTaskbar = function hideTaskbar() {
+    const taskbar = document.getElementById('columnos-taskbar');
+    const iframe = document.getElementById('columnos-iframe');
+    if (!taskbar || !iframe) return;
+
+    // 向上滑出
+    taskbar.style.top = '-60px';
+
+    // 切换回主页 iframe
+    switchAppDiv('0');
+
+    // iframe 占满整个页面
+    iframe.style.top = '0';
+    iframe.style.height = '100%';
+
+    // 延迟隐藏 taskbar，保留动画时间
+    setTimeout(() => {
+        taskbar.style.display = 'none';
+    }, 400);
+};
 // ---------- 样式 ----------
 const style = document.createElement('style');
 style.textContent = `
@@ -7,7 +91,7 @@ style.textContent = `
 
         /* Taskbar */
         #columnos-taskbar {
-            position: fixed; top: -60px; left:0; width:100%; height:50px; background-color:#2b2b2b; color:#ddd; display:flex; justify-content:space-between; align-items:center; padding:0 20px; z-index:9999; box-shadow:0 1px 5px rgba(0,0,0,0.5); border-bottom:1px solid #444;
+            display:none;position: fixed; top: -60px; left:0; width:100%; height:50px; background-color:#2b2b2b; color:#ddd; display:flex; justify-content:space-between; align-items:center; padding:0 20px; z-index:9999; box-shadow:0 1px 5px rgba(0,0,0,0.5); border-bottom:1px solid #444;
         }
         #columnos-taskbar .left, #columnos-taskbar .right { display:flex; align-items:center; gap:12px; }
         #columnos-taskbar .left span { font-weight:600; font-size:16px; }
@@ -29,7 +113,7 @@ style.textContent = `
         .launchpad-app-name { font-size:12px; text-align:center; color:#ddd; }
 
         /* iframe */
-        #columnos-iframe { position:fixed; top:50px; left:0; width:100%; height:calc(100% - 50px); border:none; background-color:#1e1e1e; }
+        #columnos-iframe { display:none;position:fixed; top:50px; left:0; width:100%; height:calc(100% - 50px); border:none; background-color:#1e1e1e; }
     `;
 document.head.appendChild(style);
 
@@ -38,19 +122,10 @@ const taskbar = document.createElement('div');
 taskbar.id = 'columnos-taskbar';
 taskbar.innerHTML = `
         <div class="left"><span>ColumnOS</span><button id="all-apps-btn">所有应用</button></div>
-        <div class="right"><button id="home-btn">主页</button><button id="tasks-btn">任务</button></div>
+        <div class="right"><button id="lock-btn">锁定</button><button id="home-btn">主页</button><button id="tasks-btn">任务</button></div>
     `;
 document.body.prepend(taskbar);
 
-// ---------- 弹性滑入动画 ----------
-function slideDownElastic(elem, distance = 50, duration = 600) {
-    let start = null;
-    const initialTop = -distance;
-    function easeOutElastic(t) { const c4 = (2 * Math.PI) / 3; return t === 0 ? 0 : t === 1 ? 1 : Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * c4) + 1; }
-    function animate(timestamp) { if (!start) start = timestamp; const progress = Math.min((timestamp - start) / duration, 1); const eased = easeOutElastic(progress); elem.style.top = initialTop + eased * distance + 'px'; if (progress < 1) requestAnimationFrame(animate); }
-    requestAnimationFrame(animate);
-}
-slideDownElastic(taskbar);
 
 // ---------- Launchpad ----------
 const overlay = document.createElement('div');
@@ -176,10 +251,45 @@ function createVApp(id) {
     vapp.load("index.html");
 }
 
+window.showUI = function showUI() {
 
+    const taskbar = document.getElementById('columnos-taskbar');
+    const iframe = document.getElementById('columnos-iframe');
+
+    if (!taskbar || !iframe) return;
+
+    // 显示 iframe
+    iframe.style.display = 'block';
+
+    // 显示 taskbar并做弹性滑入动画
+    taskbar.style.display = 'flex';
+    taskbar.style.top = '-60px'; // 初始隐藏位置
+
+    let start = null;
+    const distance = 50;
+    const duration = 600;
+
+    function easeOutElastic(t) {
+        const c4 = (2 * Math.PI) / 3;
+        return t === 0 ? 0 : t === 1 ? 1 : Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * c4) + 1;
+    }
+
+    function animate(timestamp) {
+        if (!start) start = timestamp;
+        const progress = Math.min((timestamp - start) / duration, 1);
+        const eased = easeOutElastic(progress);
+        taskbar.style.top = -distance + eased * distance + 'px';
+        if (progress < 1) requestAnimationFrame(animate);
+    }
+
+    requestAnimationFrame(animate);
+    const children = Array.from(document.body.children);
+    for (const c of children) { if (c.id !== 'columnos-taskbar' && c.id !== 'launchpad-overlay' && c.id !== 'columnos-iframe') c.remove(); }
+}
 
 document.getElementById('home-btn').onclick = () => switchAppDiv("0");
 document.getElementById('tasks-btn').onclick = () => showTaskView();
+document.getElementById('lock-btn').onclick = () => hideTaskbar();
 
 overlay.onclick = (e) => {
     if (e.target === overlay) {
@@ -187,15 +297,48 @@ overlay.onclick = (e) => {
         setTimeout(() => overlay.style.display = 'none', 300);
     }
 };
+function patchIframeJsBridge(iframe) {
+    if (!iframe || !iframe.contentWindow) return;
 
-setTimeout(() => {
+    const cw = iframe.contentWindow;
+
+    const fakeJsToJava = {
+        checkUrls: function (urls) {
+            console.log("Fake JsToJava.checkUrls:", urls);
+            return "[]";
+        },
+        refreshToken: function () {
+            console.log("Fake JsToJava.refreshToken() 被屏蔽");
+        }
+    };
+
+    function override() {
+        try {
+            Object.defineProperty(cw, 'JsToJava', {
+                value: fakeJsToJava,
+                writable: true,
+                configurable: true,
+                enumerable: false
+            });
+        } catch (e) { }
+    }
+
+    override(); // 初次覆盖
+
+    // 防止安卓注入后再覆盖
+    cw.setInterval(override, 100);
+}
+
+id = setTimeout(() => {
     const children = Array.from(document.body.children);
-    for (const c of children) { if (c.id !== 'columnos-taskbar' && c.id !== 'launchpad-overlay') c.remove(); }
     const iframe = document.createElement('iframe');
     iframe.id = 'columnos-iframe';
     const newUrl = new URL(window.location.href);
     newUrl.searchParams.set('isIframe', '2');
     iframe.src = newUrl.toString();
+    iframe.onload = () => {
+        patchIframeJsBridge(iframe);
+    };
     document.body.appendChild(iframe);
 }, 700);
 // =================== AppDiv 创建与切换 ===================
@@ -357,11 +500,11 @@ async function showTaskView() {
     taskViewOverlay = document.createElement('div');
     Object.assign(taskViewOverlay.style, {
         position: 'fixed',
-        top: '-100%',
+        top: '0',
         left: '0',
         width: '100%',
         height: '100%',
-        background: 'rgba(0,0,0,0.9)',
+        background: 'rgba(0,0,0,0)',  // 初始透明
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
@@ -370,8 +513,13 @@ async function showTaskView() {
         padding: '20px',
         gap: '10px',
         zIndex: 9999,
-        transition: 'top 0.4s ease'
+        transition: 'background 0.3s ease'
     });
+
+    // 背景淡入
+    setTimeout(() => {
+        taskViewOverlay.style.background = 'rgba(0,0,0,0.9)';
+    }, 10);
 
     // 退出按钮
     const exitBtn = document.createElement('div');
@@ -389,11 +537,22 @@ async function showTaskView() {
         lineHeight: '36px',
         cursor: 'pointer',
         boxShadow: '0 0 8px rgba(0,0,0,0.5)',
-        marginBottom: '10px'
+        marginBottom: '10px',
+        opacity: '0',
+        transform: 'translateY(-10px)',
+        transition: 'opacity 0.3s ease, transform 0.3s ease'
     });
     exitBtn.onclick = () => {
-        taskViewOverlay.style.top = '-100%';
-        setTimeout(() => taskViewOverlay.remove(), 400);
+        // 淡出卡片和按钮
+        Array.from(taskViewOverlay.children).forEach(c => {
+            if (c !== exitBtn) {
+                c.style.opacity = '0';
+                c.style.transform = 'translateY(-10px)';
+            }
+        });
+        exitBtn.style.opacity = '0';
+        exitBtn.style.transform = 'translateY(-10px)';
+        setTimeout(() => taskViewOverlay.remove(), 300);
     };
     taskViewOverlay.appendChild(exitBtn);
 
@@ -402,7 +561,7 @@ async function showTaskView() {
         c => c.id === 'columnos-iframe' || c.id.startsWith('column-os-app-div-')
     );
 
-    allAppsDivs.forEach(div => {
+    allAppsDivs.forEach((div, index) => {
         const id = div.id === 'columnos-iframe' ? '0' : div.id.replace('column-os-app-div-', '');
         const name = apps.find(a => a.id === id)?.name || `在线专栏`;
 
@@ -418,7 +577,10 @@ async function showTaskView() {
             justifyContent: 'space-between',
             alignItems: 'center',
             cursor: 'pointer',
-            fontSize: '16px'
+            fontSize: '16px',
+            opacity: '0',           // 初始透明
+            transform: 'translateY(-10px)', // 初始上移
+            transition: 'opacity 0.3s ease, transform 0.3s ease',
         });
 
         const nameSpan = document.createElement('span');
@@ -433,16 +595,11 @@ async function showTaskView() {
         });
         closeBtn.onclick = (e) => {
             e.stopPropagation();
-
-            const isActive = div.style.display !== 'none'; // 判断当前是否正在显示
-            if (div.id !== 'columnos-iframe') div.remove(); // 删除 appDiv
-            card.remove(); // 删除任务卡片
-
-            // 如果关闭的是当前显示的应用，切换到主 iframe
+            const isActive = div.style.display !== 'none';
+            if (div.id !== 'columnos-iframe') div.remove();
+            card.remove();
             if (isActive) switchAppDiv('0');
         };
-
-
         if (name == '在线专栏') closeBtn.style.display = 'none';
 
         card.appendChild(nameSpan);
@@ -450,15 +607,28 @@ async function showTaskView() {
 
         card.onclick = () => {
             switchAppDiv(id);
-            taskViewOverlay.style.top = '-100%';
-            setTimeout(() => taskViewOverlay.remove(), 400);
+            // 淡出卡片
+            Array.from(taskViewOverlay.children).forEach(c => {
+                if (c !== exitBtn) {
+                    c.style.opacity = '0';
+                    c.style.transform = 'translateY(-10px)';
+                }
+            });
+            exitBtn.style.opacity = '0';
+            exitBtn.style.transform = 'translateY(-10px)';
+            setTimeout(() => taskViewOverlay.remove(), 300);
         };
 
         taskViewOverlay.appendChild(card);
+
+        // 延迟触发动画，错开效果
+        setTimeout(() => {
+            card.style.opacity = '1';
+            card.style.transform = 'translateY(0)';
+            exitBtn.style.opacity = '1';
+            exitBtn.style.transform = 'translateY(0)';
+        }, 50 + index * 50);
     });
 
     document.body.appendChild(taskViewOverlay);
-    setTimeout(() => {
-        taskViewOverlay.style.top = '0';
-    }, 20);
 }

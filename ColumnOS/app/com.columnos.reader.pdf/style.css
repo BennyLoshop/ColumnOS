@@ -1,0 +1,99 @@
+html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    overflow: hidden;
+    font-family: sans-serif;
+}
+
+#navBar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: rgba(50,50,50,0.9);
+    color: white;
+    padding: 5px 10px;
+    box-sizing: border-box;
+    transition: top 0.3s;
+    z-index: 10;
+}
+#navBar.hidden { top: -50px; }
+#navBar .controls { display: flex; gap: 10px; align-items: center; }
+button { padding: 5px 10px; font-size: 14px; border-radius: 5px; border: none; background: #4285f4; color: white; }
+input[type=range] { width: 80px; }
+#pageJump { width: 50px; padding: 3px; border-radius: 3px; }
+
+/* Canvas 占满高度 */
+#canvasContainer {
+    position: fixed;
+    top: 50px;
+    left: 0;
+    width: 100%;
+    height: calc(100vh - 50px);
+    overflow-y: auto;
+    background: #fff;
+}
+
+canvas {
+    display: block;
+    margin: 0 auto;
+    background: white;
+    transition: transform 0.3s ease;
+}
+
+/* Modal 样式 */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 20;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background: rgba(0,0,0,0.5);
+}
+.modal-content {
+    background: #fefefe;
+    margin: 15% auto;
+    padding: 20px;
+    width: 90%;
+    max-width: 400px;
+    border-radius: 5px;
+}
+.close {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+}
+.close:hover { color: black; }
+/* Toast 提示 */
+#toast {
+    visibility: hidden;
+    min-width: 200px;
+    background-color: #333;
+    color: #fff;
+    text-align: center;
+    border-radius: 5px;
+    padding: 10px 20px;
+    position: fixed;
+    z-index: 50;
+    left: 50%;
+    bottom: 50px;
+    transform: translateX(-50%);
+    font-size: 14px;
+    opacity: 0;
+    transition: opacity 0.5s, bottom 0.5s;
+}
+
+#toast.show {
+    visibility: visible;
+    opacity: 1;
+    bottom: 70px;
+}

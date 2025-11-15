@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PDF 阅读器</title>
+<link rel="stylesheet" href="style.css" vfs:href="/style.css">
+</head>
+<body>
+
+<div id="navBar">
+    <span id="pdfName">未加载 PDF</span>
+    <div class="controls">
+        <button id="prevPage">上一页</button>
+        <span id="pageInfo">0 / 0</span>
+        <button id="nextPage">下一页</button>
+        <label>缩放
+            <select id="scaleSelect">
+                <option value="0.25">0.25x</option>
+                <option value="0.5">0.5x</option>
+                <option value="1" selected>1x</option>
+                <option value="1.5">1.5x</option>
+                <option value="2">2x</option>
+            </select>
+        </label>
+        <input type="number" id="pageJump" min="1" placeholder="跳转">
+        <button id="jumpBtn">跳转</button>
+        <button id="openFileBtn">打开 PDF</button>
+    </div>
+</div>
+
+<!-- Modal 文件选择 -->
+<div id="fileModal" class="modal">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <input type="file" id="pdfFile" accept=".pdf">
+    </div>
+</div>
+
+<div id="canvasContainer">
+    <canvas id="pdfCanvas"></canvas>
+</div>
+
+<div id="toast">缩放大于 1x，滑动翻页已禁用</div>
+
+<script src="pdf.min.js" vfs:src="/pdf.min.js"></script>
+<script src="spark-md5.min.js" vfs:src="/spark-md5.min.js"></script>
+<script src="main.js" vfs:src="/main.js"></script>
+
+</body>
+</html>

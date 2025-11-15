@@ -1,49 +1,22 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <title>WebSocket 测试</title>
-    <style>
-        body { font-family: Arial, sans-serif; padding: 20px; }
-        #status { font-weight: bold; }
-    </style>
+<meta charset="UTF-8">
+<title>设置页面</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="style.css" vfs:href="/style.css">
 </head>
 <body>
-    <h1>WebSocket 连接测试</h1>
-    <p>目标地址: <code>ws://sxz.school.zykj.org.loshop.com.cn:8766</code></p>
-    <p>连接状态: <span id="status">未连接</span></p>
-    <button id="checkBtn">测试连接</button>
 
-    <script>
-        const statusEl = document.getElementById("status");
-        const btn = document.getElementById("checkBtn");
+<div id="settings-categories">
+    <div class="category-item active" data-cat="security">安全</div>
+    <div class="category-item" data-cat="about">关于</div>
+</div>
 
-        btn.addEventListener("click", () => {
-            statusEl.textContent = "正在连接...";
-            
-            try {
-                const ws = new WebSocket("ws://sxz.school.zykj.org.loshop.com.cn:8766");
+<div id="settings-content">
+    <!-- 内容由 JS 动态生成 -->
+</div>
 
-                ws.onopen = () => {
-                    statusEl.textContent = "✅ 连接成功";
-                    ws.close();
-                };
-
-                ws.onerror = (err) => {
-                    console.error("WebSocket 错误:", err);
-                    statusEl.textContent = "❌ 连接失败";
-                };
-
-                ws.onclose = (event) => {
-                    if (statusEl.textContent !== "✅ 连接成功") {
-                        statusEl.textContent = "❌ 已关闭 / 无法连接";
-                    }
-                };
-            } catch (e) {
-                console.error("异常:", e);
-                statusEl.textContent = "❌ 异常错误";
-            }
-        });
-    </script>
+<script src="settings.js" vfs:src="/settings.js"></script>
 </body>
 </html>

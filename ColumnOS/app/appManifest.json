@@ -15,8 +15,23 @@
     "appIcon": "/system/app/com.columnos.update/icon.png"
   },
   {
+    "appName": "文件",
+    "appId": "com.columnos.files",
+    "appIcon": "/system/app/com.columnos.files/icon.png"
+  },
+  {
     "appName": "Minecraft",
     "appId": "com.columnos.test.mc",
     "appIcon": "/system/app/com.columnos.test.mc/icon.png"
+  },
+  {
+    "appName": "PDF阅读器",
+    "appId": "com.columnos.reader.pdf",
+    "appIcon": "/system/app/com.columnos.reader.pdf/icon.jpg"
+  },
+  {
+    "appName": "视频播放器",
+    "appId": "com.columnos.reader.video",
+    "appIcon": "/system/app/com.columnos.reader.video/icon.png"
   }
 ]

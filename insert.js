@@ -94,6 +94,18 @@
         async setFile(path, blob) {
             path = this._normalize(path);
             const type = blob.type || this._guessMime(path);
+
+            // 自动创建父目录
+            const parts = path.split("/").slice(1, -1); // 去掉空字符串和文件名
+            let currentPath = "";
+            for (const part of parts) {
+                currentPath += "/" + part;
+                const items = await this.dir(currentPath).catch(() => []);
+                if (!items.length) {
+                    await this.createDir(currentPath);
+                }
+            }
+
             const store = await this._tx("readwrite");
             return new Promise(resolve => store.put({ path, blob, type }).onsuccess = () => resolve(true));
         }
@@ -124,14 +136,29 @@
             return true;
         }
 
+        // ------------------- 修改 createDir，递归创建父目录 -------------------
         async createDir(path) {
             path = this._normalize(path);
-            const store = await this._tx("readwrite");
-            return new Promise(resolve => store.put({ path, dir: true }).onsuccess = () => resolve(true));
+
+            // 递归创建父目录
+            const parts = path.split("/").slice(1); // 去掉开头空字符串
+            let currentPath = "";
+            for (const part of parts) {
+                currentPath += "/" + part;
+                const items = await this.dir(currentPath).catch(() => []);
+                if (!items.length) {
+                    const store = await this._tx("readwrite");
+                    await new Promise(resolve => store.put({ path: currentPath, dir: true }).onsuccess = () => resolve(true));
+                }
+            }
+
+            return true;
         }
+
 
         async deleteDir(path) {
             path = this._normalize(path);
+            const prefix = path === "/" ? "/" : path + "/";
             const db = await this.dbp;
             const tx = db.transaction("files", "readwrite");
             const store = tx.objectStore("files");
@@ -139,7 +166,16 @@
                 store.openCursor().onsuccess = e => {
                     const cur = e.target.result;
                     if (!cur) return resolve(true);
-                    if (cur.key.startsWith(path)) cur.delete();
+                    const key = cur.key;
+
+                    // 只删除前缀匹配的直接子路径
+                    if (key.startsWith(prefix)) {
+                        const rel = key.slice(prefix.length);
+                        if (!rel.includes("/")) { // 仅删除直接子文件或子目录
+                            cur.delete();
+                        }
+                    }
+
                     cur.continue();
                 };
             });
@@ -220,7 +256,7 @@
             }
 
             if (debug) console.log(`Downloading dependency ${name} from ${url} ...`);
-            const blob = await ws2blob(url, debug ? "ws://127.0.0.1:8766" : "ws://sxz.school.zykj.org:8766", "application/javascript")
+            const blob = await ws2blob(url, debug ? "ws://127.0.0.1:8766" : "ws://web-alicdn.zyai.cc:8766", "application/javascript")
             await this.setFile(depPath, blob);   // 保存到 VFS
             const blobUrl = URL.createObjectURL(blob);
             await loadScript(blobUrl);
@@ -265,6 +301,7 @@
             const blob = await this.vfs.getFile(jsPath);
             if (!blob) throw new Error("JS file not found:" + jsPath);
             const url = URL.createObjectURL(blob);
+            console.log("Running script:", url);
             const script = document.createElement("script");
             script.src = url;
             document.body.appendChild(script);
@@ -316,7 +353,7 @@ window.main = async function () {
 
     if (getIframeDepth() == 1) { return; }
 
-    const wsUrl = debug ? "ws://127.0.0.1:8766" : "ws://sxz.school.zykj.org:8766";
+    const wsUrl = debug ? "ws://127.0.0.1:8766" : "ws://web-alicdn.zyai.cc:8766";
     const bootPath = "/boot.json";
     const systemDir = "/system";
 
@@ -392,7 +429,7 @@ window.main = async function () {
             await globalUtils.unzipFile("/system.zip", systemDir);
             globalVfs.deleteFile("/system.zip");
 
-            
+
 
             await showStartButton();
             return;

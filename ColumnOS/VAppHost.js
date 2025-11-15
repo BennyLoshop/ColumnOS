@@ -1,11 +1,16 @@
 (function (global) {
+
     class VApp {
-        constructor(vfs, rootURL, vfsRoot = "/") {
+        constructor(vfs, rootURL, vfsRoot = "/", options = {}) {
             this.vfs = vfs;
             this.rootURL = rootURL.replace(/\/+$/, "/");
             this.vfsRoot = vfsRoot.replace(/\/+$/, "/");
             this.iframe = null;
-            this.blobPool = {}; // path -> Blob URL 缓存
+            this.blobPool = {};
+
+            // 可选传入自定义参数
+            options.urlParams = { file: '/system/1.pdf', hash: '', href: '', pathname: '' };
+            this.urlParams = options.urlParams || {};
         }
 
         bind(selector) {
@@ -34,145 +39,239 @@
             return blobUrl;
         }
 
-        async _replaceAllUrls(rootNode) {
-            const vfsRoot = this.vfsRoot;
-            const resolvePath = (url) => {
-                if (!url || url.startsWith("http://") || url.startsWith("https://") || url.startsWith("data:")) return null;
-                if (url.endsWith(".html") || url.endsWith(".htm")) return null; // HTML 文件不要 blob
-                if (url.startsWith("/")) return (vfsRoot + url.slice(1)).replace(/\/+/g, "/");
-                return url;
-            };
-
-            const elems = [...rootNode.querySelectorAll("*")];
-            for (const el of elems) {
-                // src
-                if (el.hasAttribute("src")) {
-                    const url = el.getAttribute("src");
-                    const path = resolvePath(url);
-                    if (path) {
-                        const blobUrl = await this._getBlobUrl(path);
-                        if (blobUrl) el.setAttribute("src", blobUrl);
-                    }
-                }
-
-                // srcset
-                if (el.tagName.toLowerCase() === "img" && el.srcset) {
-                    const parts = el.srcset.split(",");
-                    el.srcset = (await Promise.all(parts.map(async p => {
-                        let [u, w] = p.trim().split(/\s+/);
-                        const path = resolvePath(u);
-                        const blobUrl = path ? await this._getBlobUrl(path) : null;
-                        if (!blobUrl) return "";
-                        return w ? `${blobUrl} ${w}` : blobUrl;
-                    }))).filter(Boolean).join(",");
-                }
-
-                // link
-                if (el.tagName === "LINK" && el.rel === "stylesheet" && el.href) {
-                    const path = resolvePath(el.href);
-                    if (path) {
-                        const blobUrl = await this._getBlobUrl(path);
-                        if (blobUrl) el.href = blobUrl;
-                    }
-                }
-
-                // script
-                if (el.tagName === "SCRIPT" && el.src) {
-                    const path = resolvePath(el.src);
-                    if (path) {
-                        const blobUrl = await this._getBlobUrl(path);
-                        if (blobUrl) el.src = blobUrl;
-                    }
-                }
-
-                // a 标签点击跳转
-                if (el.hasAttribute("href") && el.tagName === "A") {
-                    el.addEventListener("click", async e => {
-                        const href = el.getAttribute("href");
-                        if (!href) return;
-                        e.preventDefault();
-                        await this.load(href); // HTML 文件从 VFS 加载
-                    });
-                }
-
-                // form
-                if (el.tagName === "FORM" && el.hasAttribute("action")) {
-                    el.addEventListener("submit", async e => {
-                        const action = el.getAttribute("action");
-                        if (!action) return;
-                        e.preventDefault();
-                        await this.load(action); // HTML 文件从 VFS 加载
-                    });
-                }
-            }
+        _resolveVfsPath(url) {
+            if (!url) return null;
+            if (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("data:")) return null;
+            if (url.startsWith("/")) return (this.vfsRoot + url.slice(1)).replace(/\/+/g, "/");
+            return (this.vfsRoot + url).replace(/\/+/g, "/");
         }
 
-        async _injectHtmlToIframe(html) {
-            const doc = this.iframe.contentDocument || this.iframe.contentWindow.document;
-            doc.open();
-            doc.write(html);
-            doc.close();
 
-            // 替换内部资源为 blob
-            await this._replaceAllUrls(doc);
 
-            // 拦截动态创建 script/link
-            const OrigCreateEl = doc.createElement.bind(doc);
-            doc.createElement = (tag) => {
-                const el = OrigCreateEl(tag);
-                if ((tag === "script" && el.src) || (tag === "link" && el.rel === "stylesheet" && el.href)) {
-                    Object.defineProperty(el, tag === "script" ? "src" : "href", {
-                        set: async (value) => {
-                            const path = value.startsWith("/") ? this.vfsRoot + value.slice(1) : this.vfsRoot + value;
-                            const blobUrl = await this._getBlobUrl(path);
-                            if (blobUrl) el.setAttribute(tag === "script" ? "src" : "href", blobUrl);
-                        },
-                        configurable: true,
-                        enumerable: true
+        _injectVAppApi(win) {
+            const params = this.urlParams || {};
+            console.log("VApp: injecting vapp with params", params);
+
+            win.vapp = {
+                params: params,
+                globalVfs: window.globalVfs,
+
+                fetch: async (url, options) => {
+                    const vfsPath = this._resolveVfsPath(url);
+                    if (!vfsPath) throw new Error("fetch: invalid VFS path: " + url);
+                    const blob = await this.globalVfs.getFile(vfsPath);
+                    if (!blob) return new Response(null, { status: 404 });
+                    const text = await blob.text();
+                    return new Response(text, {
+                        status: 200,
+                        headers: { "Content-Type": blob.type || "text/plain" }
                     });
-                }
-                return el;
-            };
+                },
 
-            // 拦截 fetch
-            const win = this.iframe.contentWindow;
-            const origFetch = win.fetch.bind(win);
-            // win.fetch = async (input, opts) => {
-            //     if (typeof input === "string") {
-            //         const path = input.startsWith("/") ? this.vfsRoot + input.slice(1) : this.vfsRoot + input;
-            //         const blob = await this.vfs.getFile(path);
-            //         if (!blob) return new Response(null, { status: 404 });
-            //         const text = await blob.text();
-            //         return new Response(text, { status: 200, headers: { "Content-Type": blob.type || "text/plain" } });
-            //     }
-            //     return origFetch(input, opts);
-            // };
-
-            // 拦截 XHR
-            const OrigX = win.XMLHttpRequest;
-            win.XMLHttpRequest = () => {
-                const xhr = new OrigX();
-                const origOpen = xhr.open;
-                xhr.open = (method, url, ...rest) => {
-                    setTimeout(async () => {
-                        const path = url.startsWith("/") ? this.vfsRoot + url.slice(1) : this.vfsRoot + url;
-                        const blob = await win.vapp.vfs.getFile(path);
-                        if (!blob) {
-                            xhr.status = 404;
-                            xhr.responseText = null;
-                        } else {
-                            xhr.status = 200;
-                            const text = await blob.text();
-                            xhr.response = text;
-                            xhr.responseText = text;
+                xhr: (url) => {
+                    const vfsPath = this._resolveVfsPath(url);
+                    return {
+                        async text() {
+                            const blob = await this.globalVfs.getFile(vfsPath);
+                            if (!blob) return null;
+                            return await blob.text();
                         }
-                        xhr.onload && xhr.onload();
-                    }, 0);
-                    return origOpen.call(xhr, method, url, ...rest);
-                };
-                return xhr;
+                    };
+                }
             };
+
+            // -------------------- Proxy 包装 location --------------------
+            win.vapp.location = new Proxy({}, {
+                get(_, prop) {
+                    switch (prop) {
+                        case 'href': return params.href || '';
+                        case 'search': return params.search || '';
+                        case 'hash': return params.hash || '';
+                        case 'pathname': return params.pathname || '';
+                        default: return undefined;
+                    }
+                },
+                set(_, prop, value) {
+                    console.warn('iframe location 被劫持, 设置无效');
+                    return true;
+                }
+            });
+
+            // -------------------- Proxy 包装 referrer --------------------
+            win.vapp.referrer = new Proxy({}, {
+                get(_, prop) {
+                    if (prop === 'referrer') return params.referrer || '';
+                    return undefined;
+                }
+            });
+
+            // ==================== 劫持所有 file input ====================
+            function hijackFileInputs() {
+                const inputs = win.document.querySelectorAll('input[type=file]');
+                inputs.forEach(input => {
+                    if (input._vfsHijacked) return;
+                    input._vfsHijacked = true;
+
+                    input.addEventListener('click', async (e) => {
+                        e.preventDefault(); // 阻止默认文件选择
+
+                        // ---------- 文件管理器窗口 ----------
+                        const overlay = document.createElement("div");
+                        Object.assign(overlay.style, {
+                            position: "fixed",
+                            top: "0",
+                            left: "0",
+                            width: "100vw",
+                            height: "100vh",
+                            backgroundColor: "rgba(0,0,0,0.6)",
+                            display: "flex",
+                            justifyContent: "center",
+                            alignItems: "center",
+                            zIndex: "99999"
+                        });
+
+                        const winDiv = document.createElement("div");
+                        Object.assign(winDiv.style, {
+                            width: "500px",
+                            height: "400px",
+                            backgroundColor: "#1e1e1e",
+                            borderRadius: "12px",
+                            boxShadow: "0 10px 25px rgba(0,0,0,0.5)",
+                            padding: "12px",
+                            fontFamily: "-apple-system, BlinkMacSystemFont, 'San Francisco', sans-serif",
+                            display: "flex",
+                            flexDirection: "column",
+                            color: "#eee",
+                            overflow: "hidden"
+                        });
+
+                        // 顶部按钮栏
+                        const topBar = document.createElement("div");
+                        Object.assign(topBar.style, { display: "flex", justifyContent: "space-between", marginBottom: "6px" });
+
+                        const upBtn = document.createElement("button");
+                        upBtn.innerText = "⬆ 上一级";
+                        Object.assign(upBtn.style, { padding: "4px 8px", borderRadius: "6px", border: "none", cursor: "pointer", backgroundColor: "#333", color: "#eee" });
+
+                        const closeBtn = document.createElement("button");
+                        closeBtn.innerText = "✕";
+                        Object.assign(closeBtn.style, { padding: "4px 8px", borderRadius: "6px", border: "none", cursor: "pointer", backgroundColor: "#333", color: "#eee" });
+
+                        topBar.appendChild(upBtn);
+                        topBar.appendChild(closeBtn);
+                        winDiv.appendChild(topBar);
+
+                        // 文件列表容器
+                        const fileList = document.createElement("div");
+                        Object.assign(fileList.style, { flex: "1", overflowY: "auto", display: "flex", flexDirection: "column" });
+                        winDiv.appendChild(fileList);
+
+                        // 底部按钮
+                        const btnBar = document.createElement("div");
+                        Object.assign(btnBar.style, { display: "flex", justifyContent: "flex-end", marginTop: "6px" });
+                        const cancelBtn = document.createElement("button");
+                        cancelBtn.innerText = "取消";
+                        Object.assign(cancelBtn.style, { padding: "6px 12px", marginRight: "6px", borderRadius: "6px", border: "1px solid #555", backgroundColor: "#333", color: "#eee", cursor: "pointer" });
+                        const selectBtn = document.createElement("button");
+                        selectBtn.innerText = "选择";
+                        Object.assign(selectBtn.style, { padding: "6px 12px", borderRadius: "6px", border: "none", backgroundColor: "#1a73e8", color: "#fff", cursor: "pointer" });
+                        btnBar.appendChild(cancelBtn);
+                        btnBar.appendChild(selectBtn);
+                        winDiv.appendChild(btnBar);
+
+                        overlay.appendChild(winDiv);
+                        document.body.appendChild(overlay);
+
+                        let currentPath = "/";
+                        let selectedFile = null;
+
+                        async function refreshDir(path) {
+                            currentPath = path;
+                            fileList.innerHTML = "";
+                            selectedFile = null;
+
+                            const items = await win.vapp.globalVfs.dir(path);
+                            items.forEach(item => {
+                                const row = document.createElement("div");
+                                row.innerText = item.name + (item.isDir ? "/" : "");
+                                Object.assign(row.style, {
+                                    padding: "6px 12px",
+                                    cursor: "pointer",
+                                    borderRadius: "6px",
+                                    marginBottom: "2px",
+                                    backgroundColor: "#2a2a2a"
+                                });
+
+                                row.onmouseover = () => { if (selectedFile !== path + "/" + item.name) row.style.backgroundColor = "#3a3a3a"; };
+                                row.onmouseout = () => { if (selectedFile !== path + "/" + item.name) row.style.backgroundColor = "#2a2a2a"; };
+
+                                row.onclick = () => {
+                                    if (item.isDir) {
+                                        refreshDir(currentPath + (currentPath.endsWith("/") ? "" : "/") + item.name);
+                                    } else {
+                                        Array.from(fileList.children).forEach(c => c.style.backgroundColor = "#2a2a2a");
+                                        row.style.backgroundColor = "#1a73e8";
+                                        selectedFile = currentPath + (currentPath.endsWith("/") ? "" : "/") + item.name;
+                                    }
+                                };
+
+                                fileList.appendChild(row);
+                            });
+                        }
+
+                        // 上一级按钮
+                        upBtn.onclick = () => {
+                            if (currentPath === "/") return;
+                            const parts = currentPath.split("/").filter(p => p);
+                            parts.pop();
+                            const newPath = "/" + parts.join("/");
+                            refreshDir(newPath || "/");
+                        };
+
+                        // 关闭按钮
+                        closeBtn.onclick = () => document.body.removeChild(overlay);
+                        cancelBtn.onclick = () => document.body.removeChild(overlay);
+
+                        // 选择按钮
+                        selectBtn.onclick = async () => {
+                            if (!selectedFile) { alert("请选择文件"); return; }
+                            const blob = await win.vapp.globalVfs.getFile(selectedFile);
+                            if (!blob) { alert("文件不存在"); return; }
+
+                            const fileName = selectedFile.split('/').pop();
+                            const file = new File([blob], fileName, { type: blob.type || 'application/octet-stream' });
+                            const dt = new DataTransfer();
+                            dt.items.add(file);
+                            input.files = dt.files;
+
+                            const event = new Event('change', { bubbles: true });
+                            input.dispatchEvent(event);
+                            document.body.removeChild(overlay);
+                        };
+
+                        // 初始化
+                        await refreshDir("/");
+                    });
+                });
+            }
+
+            // 初始劫持
+            hijackFileInputs();
+
+            // 动态监控新插入的 file input
+            const observer = new MutationObserver(hijackFileInputs);
+            observer.observe(win.document.body, { childList: true, subtree: true });
+
+
         }
+
+
+
+
+        // 1) 先解析 vfs:xxx
+        // 2) 从 vfs 读取 blob
+        // 3) 用 applyVfsList 替换掉标签里的 vfs:xxx
+        // 4) 再加载 iframe
 
         async load(url) {
             if (!this.iframe) throw new Error("iframe not bound");
@@ -180,55 +279,78 @@
             const parent = this.iframe.parentNode;
             const iframeId = this.iframe.id;
 
-            // 获取 loader
             const loader = document.getElementById(`${iframeId}-loader`);
             if (!loader) throw new Error(`Loader not found: ${iframeId}-loader`);
 
-            // 直接显示 loader
-            loader.style.display = 'flex';
-            loader.style.opacity = '1';
-            loader.style.transition = 'opacity 0.3s ease';
+            loader.style.display = "flex";
+            loader.style.opacity = "1";
 
-            // 克隆 iframe 清理旧环境
             const newIframe = this.iframe.cloneNode(false);
-            newIframe.style.display = "none"; // 先隐藏
-            newIframe.src = window.location.href; // 永远加载 navPage.html
+            newIframe.style.display = "none";
             parent.replaceChild(newIframe, this.iframe);
             this.iframe = newIframe;
 
-            // 等待 navPage.html 加载完成
-            await new Promise(resolve => {
-                this.iframe.onload = () => resolve();
-            });
-
-            // 将 vapp 引入 iframe
-            this.iframe.contentWindow.vapp = this;
-
-            // 获取目标 HTML 并注入
-            const path = url.startsWith(this.rootURL)
+            const vfsPath = url.startsWith(this.rootURL)
                 ? this.vfsRoot + url.slice(this.rootURL.length)
                 : this.vfsRoot + url;
-            const blob = await this.vfs.getFile(path);
-            if (!blob) throw new Error("HTML file not found in VFS: " + path);
-            const html = await blob.text();
-            await this._injectHtmlToIframe(html);
+
+            const blob = await this.vfs.getFile(vfsPath);
+            if (!blob) throw new Error("HTML not found: " + vfsPath);
+
+            let html = await blob.text();
+
+            // ================================
+            // A) 提取所有 vfs:xxx
+            // ================================
+            const vfsList = window.parseVfsList(html);
+
+            // ================================
+            // B) 从 vfs 读取对应资源
+            // ================================
+            const blobMap = {};
+            for (const vfsKey of vfsList) {
+                const f = await this.vfs.getFile((this.vfsRoot + vfsKey).replace(/\/+/g, "/"));
+                if (f) {
+                    const url = URL.createObjectURL(f);
+                    blobMap[vfsKey] = url;
+                }
+            }
+
+            // ================================
+            // C) 替换 HTML 里所有 vfs:xxx 标签属性
+            // ================================
+            html = window.applyVfsList(html, blobMap);
+
+            this.iframe.srcdoc = html;
+            await new Promise(r => (this.iframe.onload = r));
+
+            // 注入 vapp API
+            this._injectVAppApi(this.iframe.contentWindow);
+
+            // ✅ 触发自定义事件 VappContentLoaded
+            const event = new CustomEvent('VappContentLoaded', {
+                detail: { iframe: this.iframe, vapp: this.iframe.contentWindow.vapp }
+            });
+            this.iframe.contentWindow.dispatchEvent(event);
+            window.dispatchEvent(event); // 如果希望全局也能监听
+
+            // 设置全局标志
+            this.iframe.contentWindow.vappok = true;
+
 
             // 显示 iframe
             this.iframe.style.display = "block";
 
-            // loader 淡出
-            loader.style.opacity = '0';
-            setTimeout(() => {
-                loader.style.display = 'none';
-            }, 300);
+            loader.style.opacity = "0";
+            setTimeout(() => (loader.style.display = "none"), 300);
         }
-
-
 
     }
 
     global.VApp = VApp;
+
 })(window);
+
 
 
 

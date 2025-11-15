@@ -19,6 +19,7 @@ from PyQt6.QtWidgets import (
 
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, QDateTime, QObject
 from PyQt6.QtGui import QFont, QTextCursor, QIcon
+from PyQt6.QtGui import QFontDatabase
 import socket
 import requests
 from flask import Flask, request, Response, send_file
@@ -551,42 +552,52 @@ class NetworkToolGUI(QMainWindow):
         self.setWindowTitle("ColumnOS安装程序")
         self.setGeometry(100, 100, 540, 280)
         self.setWindowIcon(QIcon("icon.ico"))
-        self.setFixedHeight(200)  # 默认日志隐藏时窗口高度
-        self.setFixedWidth(400) # 宽度固定或可调整
+        self.setFixedHeight(200)
+        self.setFixedWidth(400)
 
+        # 加载 SourceHanSansSC-Medium.otf
+        font_id = QFontDatabase.addApplicationFont("SourceHanSansSC-Medium.otf")
+        if font_id == -1:
+            print("字体加载失败，使用系统默认字体")
+            font_family = "Segoe UI"
+        else:
+            font_family = QFontDatabase.applicationFontFamilies(font_id)[0]
 
         # Fluent 风格全局样式
-        self.setStyleSheet("""
-        QMainWindow {
+        self.setStyleSheet(f"""
+        QMainWindow {{
             background-color: #f3f3f3;
-        }
-        QLabel {
+        }}
+        QLabel {{
             color: #333;
-        }
-        QPushButton {
+            font-family: "{font_family}";
+        }}
+        QPushButton {{
             background-color: #0078D4;
             color: white;
             border: none;
             border-radius: 6px;
             padding: 6px 12px;
-        }
-        QPushButton:hover {
+            font-family: "{font_family}";
+        }}
+        QPushButton:hover {{
             background-color: #005A9E;
-        }
-        QPushButton:pressed {
+        }}
+        QPushButton:pressed {{
             background-color: #004578;
-        }
-        QTextEdit {
+        }}
+        QTextEdit {{
             background-color: #ffffff;
             border: 1px solid #d0d0d0;
             border-radius: 6px;
             padding: 4px;
-        }
-        QFrame#btn_frame {
+            font-family: "{font_family}";
+        }}
+        QFrame#btn_frame {{
             background-color: #ffffff;
             border-radius: 8px;
             padding: 8px;
-        }
+        }}
         """)
 
         central_widget = QWidget()
@@ -597,16 +608,16 @@ class NetworkToolGUI(QMainWindow):
 
         # 状态标签
         self.status_label = QLabel("启动中...")
-        self.status_label.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
+        self.status_label.setFont(QFont(font_family, 16, QFont.Weight.Bold))
         main_layout.addWidget(self.status_label)
 
         # 热点信息
         self.ssid_label = QLabel(f"热点：{HOTSPOT_SSID}")
-        self.ssid_label.setFont(QFont("Segoe UI", 12))
+        self.ssid_label.setFont(QFont(font_family, 12))
         main_layout.addWidget(self.ssid_label)
 
         self.pass_label = QLabel(f"密码：{HOTSPOT_PASSWORD}")
-        self.pass_label.setFont(QFont("Segoe UI", 12))
+        self.pass_label.setFont(QFont(font_family, 12))
         main_layout.addWidget(self.pass_label)
 
         # 顶部按钮卡片
@@ -617,15 +628,15 @@ class NetworkToolGUI(QMainWindow):
         btn_layout.setContentsMargins(8, 8, 8, 8)
 
         self.about_btn = QPushButton("关于")
-        self.about_btn.setFont(QFont("Segoe UI", 10))
+        self.about_btn.setFont(QFont(font_family, 10))
         self.about_btn.clicked.connect(self.show_about_info)
 
         self.usage_btn = QPushButton("使用说明")
-        self.usage_btn.setFont(QFont("Segoe UI", 10))
+        self.usage_btn.setFont(QFont(font_family, 10))
         self.usage_btn.clicked.connect(self.open_readme_pdf)
 
         self.log_toggle_btn = QPushButton("日志")
-        self.log_toggle_btn.setFont(QFont("Segoe UI", 10))
+        self.log_toggle_btn.setFont(QFont(font_family, 10))
         self.log_toggle_btn.clicked.connect(self.toggle_logs)
 
         btn_layout.addWidget(self.about_btn)
@@ -636,14 +647,13 @@ class NetworkToolGUI(QMainWindow):
 
         # 日志文本框
         self.log_text = QTextEdit()
-        self.log_text.setFont(QFont("Consolas", 10))
+        self.log_text.setFont(QFont(font_family, 10))
         self.log_text.setReadOnly(True)
         self.log_text.setVisible(False)
         main_layout.addWidget(self.log_text)
 
         # 初始化日志
         self.append_log("程序已启动，正在执行自动初始化...")
-
 
     # 日志写入
     def append_log(self, text):
@@ -753,14 +763,25 @@ class NetworkToolGUI(QMainWindow):
 
 # -------- 主入口 --------
 if __name__ == "__main__":
+
     def handle_signal(signum, frame):
         sys.exit(0)
+
     signal.signal(signal.SIGINT, handle_signal)
     signal.signal(signal.SIGTERM, handle_signal)
 
     app = QApplication(sys.argv)
-    font = QFont("SimHei")
-    app.setFont(font)
+
+    # 加载 SourceHanSansSC-Medium.otf
+    font_id = QFontDatabase.addApplicationFont("SourceHanSansSC-Medium.otf")
+    if font_id == -1:
+        print("字体加载失败，使用系统默认字体")
+        font_family = "Segoe UI"
+    else:
+        font_family = QFontDatabase.applicationFontFamilies(font_id)[0]
+
+    # 设置全局字体
+    app.setFont(QFont(font_family))
 
     # 简短声明
     msg_box = QMessageBox()
@@ -769,37 +790,38 @@ if __name__ == "__main__":
     msg_box.setText("请先阅读使用指南。")
     msg_box.setStandardButtons(QMessageBox.StandardButton.Ok)
 
-    # Fluent 风格样式
-    msg_box.setStyleSheet("""
-        QMessageBox {
+    # Fluent 风格样式，使用 Source Han Sans SC
+    msg_box.setStyleSheet(f"""
+        QMessageBox {{
             background-color: #f3f3f3;
             border-radius: 8px;
-            font-family: 'Segoe UI';
+            font-family: "{font_family}";
             font-size: 12pt;
             color: #333;
-        }
-        QLabel {
+        }}
+        QLabel {{
             color: #333;
             font-size: 12pt;
-        }
-        QPushButton {
+            font-family: "{font_family}";
+        }}
+        QPushButton {{
             background-color: #0078D4;
             color: white;
             border: none;
             border-radius: 6px;
             padding: 6px 12px;
             min-width: 80px;
-        }
-        QPushButton:hover {
+            font-family: "{font_family}";
+        }}
+        QPushButton:hover {{
             background-color: #005A9E;
-        }
-        QPushButton:pressed {
+        }}
+        QPushButton:pressed {{
             background-color: #004578;
-        }
+        }}
     """)
 
     msg_box.exec()
-
 
     window = NetworkToolGUI()
     window.show()

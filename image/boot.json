@@ -3,8 +3,11 @@
   "updateLog": "【新增】支持多应用同时运行\n【优化】提升系统启动速度\n【修复】修复部分界面渲染问题",
   "files": [
     "src/html2canvas.min.js",
+    "src/xiyueta.min.js",
+    "rewriter.js",
     "VAppHost.js",
     "UICore.js",
+    "safety.js",
     "ColumnOS.js"
   ]
 }
