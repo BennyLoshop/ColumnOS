@@ -31,7 +31,7 @@ async function autoRefreshAppList(interval = 2000) {
                 configurable: true,    // 允许再次重写
                 enumerable: false
             });
-        } catch (e) {}
+        } catch (e) { }
     }
 
     // 首次覆盖
@@ -42,3 +42,24 @@ async function autoRefreshAppList(interval = 2000) {
 })();
 
 autoRefreshAppList(100);//1
+
+// 初始化自己的历史记录 state// 初始化自己的历史记录 state
+history.pushState(null, '', location.href);
+
+// 拦截浏览器返回按钮和安卓返回键
+function blockBackButton(win) {
+    if (!win) return;
+
+    // 拦截浏览器返回
+    win.addEventListener('popstate', (e) => {
+        e.preventDefault();
+        history.pushState(null, '', location.href);
+    });
+
+}
+
+// 定时任务：0.1s 拦截自己和所有 iframe（排除 #columnos-iframe）
+setInterval(() => {
+    // 自己
+    blockBackButton(window);
+}, 100);

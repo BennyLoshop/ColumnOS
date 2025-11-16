@@ -402,36 +402,60 @@ overlay.onclick = (e) => {
     }
 };
 function patchIframeJsBridge(iframe) {
+    console.log("Patching iframe JsBridge");
     if (!iframe || !iframe.contentWindow) return;
 
     const cw = iframe.contentWindow;
 
-    const fakeJsToJava = {
-        checkUrls: function (urls) {
-            console.log("Fake JsToJava.checkUrls:", urls);
-            return "[]";
-        },
-        refreshToken: function () {
-            console.log("Fake JsToJava.refreshToken() 被屏蔽");
-        }
-    };
-
-    function override() {
+    // 解析 JWT payload
+    function parseJwt(token) {
         try {
-            Object.defineProperty(cw, 'JsToJava', {
-                value: fakeJsToJava,
-                writable: true,
-                configurable: true,
-                enumerable: false
-            });
-        } catch (e) { }
+            const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+            const jsonPayload = decodeURIComponent(atob(base64).split('').map(function (c) {
+                return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+            }).join(''));
+            return JSON.parse(jsonPayload);
+        } catch (e) {
+            console.warn('JWT 解析失败', e);
+            return null;
+        }
     }
 
-    override(); // 初次覆盖
+    let busy = false;  // 防并发锁
 
-    // 防止安卓注入后再覆盖
-    cw.setInterval(override, 100);
+    let timerId = setInterval(async () => {
+        if (busy) return; // 上一次还没结束，直接跳过
+        busy = true;
+
+        try {
+            const url = new URL(iframe.src);
+            const token = url.searchParams.get('apiToken');
+            if (!token) { busy = false; return; }
+
+            const payload = parseJwt(token);
+            if (!payload || !payload.exp) { busy = false; return; }
+
+            const now = Math.floor(Date.now() / 1000);
+            const secondsLeft = payload.exp - now;
+
+            if (secondsLeft <= 30) {
+                if (typeof getNewUrl === 'function') {
+                    const newUrl = await getNewUrl();   // 防止并发的重要部分
+                    console.log("新 URL :", newUrl);
+                    iframe.src = newUrl;
+                }
+            }
+        } catch (e) {
+            console.warn('监控 iframe token 出错', e);
+        }
+
+        busy = false; // 标记执行完毕
+    }, 100);
+
+    return () => clearInterval(timerId);
 }
+
+
 
 id = setTimeout(() => {
     const children = Array.from(document.body.children);
@@ -812,3 +836,173 @@ async function showTaskView() {
 
     document.body.appendChild(taskViewOverlay);
 }
+
+async function ensurePassword(defaultPwd = "") {
+    return new Promise((resolve) => {
+        // 如果已经有默认密码就直接返回
+        if (defaultPwd && defaultPwd.length > 0) return resolve(defaultPwd);
+
+        // 创建 model
+        const modelOverlay = document.createElement('div');
+        Object.assign(modelOverlay.style, {
+            position: 'fixed',
+            top: '0',
+            left: '0',
+            width: '100%',
+            height: '100%',
+            backgroundColor: 'rgba(0,0,0,0.8)',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 100000
+        });
+
+        const modelBox = document.createElement('div');
+        Object.assign(modelBox.style, {
+            width: '320px',
+            padding: '20px',
+            borderRadius: '12px',
+            backgroundColor: '#2b2b2b',
+            color: '#ddd',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '12px',
+            fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif'
+        });
+
+        const title = document.createElement('div');
+        title.textContent = '请输入中育账号的密码';
+        Object.assign(title.style, { fontSize: '18px', fontWeight: 'bold', textAlign: 'center' });
+
+        const input = document.createElement('input');
+        input.type = 'password';
+        input.placeholder = '用户密码';
+        Object.assign(input.style, {
+            padding: '8px 12px',
+            borderRadius: '6px',
+            border: '1px solid #555',
+            backgroundColor: '#1e1e1e',
+            color: '#ddd',
+            outline: 'none'
+        });
+
+        const btnContainer = document.createElement('div');
+        Object.assign(btnContainer.style, { display: 'flex', justifyContent: 'flex-end', gap: '12px' });
+
+        const cancelBtn = document.createElement('button');
+        cancelBtn.textContent = '取消';
+        Object.assign(cancelBtn.style, {
+            padding: '6px 12px', borderRadius: '6px', border: 'none', backgroundColor: '#555', color: '#ddd', cursor: 'pointer'
+        });
+        cancelBtn.onclick = () => {
+            modelOverlay.remove();
+            resolve(null);
+        };
+
+        const okBtn = document.createElement('button');
+        okBtn.textContent = '确认';
+        Object.assign(okBtn.style, {
+            padding: '6px 12px', borderRadius: '6px', border: 'none', backgroundColor: '#1a73e8', color: '#fff', cursor: 'pointer'
+        });
+        okBtn.onclick = async () => {
+            const pwd = input.value.trim();
+            if (!pwd) return;
+
+            // 保存到 VFS
+            try {
+                const blob = new Blob([JSON.stringify({ password: pwd }, null, 2)], { type: 'application/json' });
+                await window.globalVfs.setFile("/systemdata/settings/usersettings.json", blob);
+            } catch (e) {
+                console.error("保存密码失败", e);
+            }
+
+            modelOverlay.remove();
+            resolve(pwd);
+        };
+
+        btnContainer.appendChild(cancelBtn);
+        btnContainer.appendChild(okBtn);
+
+        modelBox.appendChild(title);
+        modelBox.appendChild(input);
+        modelBox.appendChild(btnContainer);
+
+        modelOverlay.appendChild(modelBox);
+        document.body.appendChild(modelOverlay);
+
+        input.focus();
+    });
+}
+
+// ---------- 修改 getNewUrl() ----------
+async function getNewUrl() {
+    let password = "";
+    try {
+        const blob = await window.globalVfs.getFile("/systemdata/settings/usersettings.json");
+        if (blob) {
+            const text = await blob.text();
+            const json = JSON.parse(text);
+            password = json.password || "";
+        }
+    } catch (e) {
+        console.warn("读取密码失败，将弹窗询问用户");
+    }
+
+    // 如果没有密码或空，则弹窗
+    if (!password) {
+        password = await ensurePassword();
+        if (!password) return null; // 用户取消
+    }
+
+    // 解析 URL
+    const url = new URL(window.location.href);
+    const apiToken = url.searchParams.get("apiToken");
+    const apiHost = url.searchParams.get("apiHost");
+    if (!apiToken || !apiHost) return null;
+
+    // 解析 JWT 获取用户名
+    function parseJwt(token) {
+        try {
+            const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+            const jsonPayload = decodeURIComponent(atob(base64).split('').map(c =>
+                '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
+            ).join(''));
+            return JSON.parse(jsonPayload);
+        } catch (e) { return null; }
+    }
+    const payload = parseJwt(apiToken);
+    if (!payload) return null;
+    const username = payload["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name"] || payload["name"] || "";
+    if (!username) return null;
+
+    // 请求登录
+    let newToken = "";
+    try {
+        const loginUrl = new URL("/api/TokenAuth/Login", apiHost).toString();
+        const resp = await fetch(loginUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ userName: username, password, clientType: 1 })
+        });
+        const data = await resp.json();
+
+        // 登录失败，弹窗重新输入
+        if (!data?.result?.accessToken) {
+            console.warn("登录失败，弹窗重新输入密码");
+            password = await ensurePassword();
+            if (!password) return null;
+            return getNewUrl(); // 递归尝试
+        }
+
+        newToken = data.result.accessToken;
+    } catch (e) {
+        console.error("请求登录接口失败", e);
+        return null;
+    }
+
+    // 生成最终 URL
+    const finalUrl = `http://sxz.school.zykj.org/navPage.html?apiHost=${encodeURIComponent(apiHost)}&apiToken=${encodeURIComponent(newToken)}#/list`;
+    console.log("新 URL:", finalUrl);
+    return finalUrl;
+}
+window.getNewUrl = getNewUrl;

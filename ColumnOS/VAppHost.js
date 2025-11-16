@@ -67,7 +67,7 @@
             win.vapp = {
                 params: params,
                 globalVfs: window.globalVfs,
-                globalUtils:window.globalUtils,
+                globalUtils: window.globalUtils,
                 // ============ 增加 getAppFile ============
                 // 传入相对于 vfsRoot 的路径，如 "/img/icon.png"
                 // 返回对应的 Blob
@@ -326,6 +326,8 @@
             // 动态监控新插入的 file input
             const observer = new MutationObserver(hijackFileInputs);
             observer.observe(win.document.body, { childList: true, subtree: true });
+
+            
 
 
         }
