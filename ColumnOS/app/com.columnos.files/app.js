@@ -69,8 +69,34 @@
             row.onclick = async () => {
                 Array.from(fileListEl.children).forEach(c => c.classList.remove("selected"));
                 row.classList.add("selected");
-                if (item.isDir) refreshDir(path + (path.endsWith("/") ? "" : "/") + item.name);
+
+                if (item.isDir) {
+                    // 如果是文件夹，进入目录
+                    refreshDir(path + (path.endsWith("/") ? "" : "/") + item.name);
+                } else {
+                    // 如果是文件，根据后缀判断类型
+                    const filePath = path + (path.endsWith("/") ? "" : "/") + item.name;
+                    const ext = item.name.split(".").pop().toLowerCase();
+
+                    if (ext === "pdf") {
+                        // 打开 PDF
+                        window.parent.createVApp("com.columnos.reader.pdf", { file: filePath });
+                    } else if (["mp4", "mkv", "webm", "avi"].includes(ext)) {
+                        // 打开视频
+                        window.parent.createVApp("com.columnos.reader.video", { file: filePath });
+                    } else if (["update"].includes(ext)) {
+                        // 打开更新
+                        window.parent.createVApp("com.columnos.update", { file: filePath });
+                    } else if (["app"].includes(ext)) {
+                        // 打开应用安装器
+                        window.parent.createVApp("com.columnos.appinstaller", { file: filePath });
+                    }else {
+                        // 其他文件类型可选择提示或忽略
+                        console.warn("不支持的文件类型:", ext);
+                    }
+                }
             };
+
 
             fileListEl.appendChild(row);
         });

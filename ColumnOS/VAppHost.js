@@ -9,8 +9,8 @@
             this.blobPool = {};
 
             // 可选传入自定义参数
-            options.urlParams = { file: '/system/1.pdf', hash: '', href: '', pathname: '' };
-            this.urlParams = options.urlParams || {};
+            //options = { file: '/system/1.pdf', hash: '', href: '', pathname: '' };
+            this.urlParams = options || {};
         }
 
         bind(selector) {
@@ -51,10 +51,36 @@
         _injectVAppApi(win) {
             const params = this.urlParams || {};
             console.log("VApp: injecting vapp with params", params);
+            const style = win.document.createElement('style');
+            style.innerHTML = `
+    html, body {
+        overscroll-behavior: none;      /* 阻止滚动链式反弹 */
+        -webkit-overflow-scrolling: auto; /* iOS 弹性滚动改为普通滚动 */
+        overflow: hidden;                /* 需要可滚动的元素另行处理 */
+    }
+    * {
+        -webkit-tap-highlight-color: transparent; /* 去掉触摸高亮 */
+    }
+`;
+            win.document.head.appendChild(style);
 
             win.vapp = {
                 params: params,
                 globalVfs: window.globalVfs,
+                globalUtils:window.globalUtils,
+                // ============ 增加 getAppFile ============
+                // 传入相对于 vfsRoot 的路径，如 "/img/icon.png"
+                // 返回对应的 Blob
+                getAppFile: async (relPath) => {
+                    if (!relPath.startsWith("/")) relPath = "/" + relPath;
+
+                    const vfsPath = (this.vfsRoot + relPath).replace(/\/+/g, "/");
+
+                    const blob = await window.globalVfs.getFile(vfsPath);
+                    return blob || null;
+                },
+                // =========================================
+
 
                 fetch: async (url, options) => {
                     const vfsPath = this._resolveVfsPath(url);
@@ -104,6 +130,45 @@
                     return undefined;
                 }
             });
+            win.alert = function (msg) {
+                // 如果已有 toast，先移除
+                const existing = win.document.getElementById('__vapp_toast');
+                if (existing) existing.remove();
+
+                const toast = win.document.createElement('div');
+                toast.id = '__vapp_toast';
+                toast.textContent = msg;
+
+                Object.assign(toast.style, {
+                    position: 'fixed',
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    padding: '12px 24px',
+                    backgroundColor: 'rgba(30,30,30,0.95)',
+                    color: '#fff',
+                    fontSize: '16px',
+                    borderRadius: '8px',
+                    zIndex: '999999',
+                    textAlign: 'center',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
+                    opacity: '0',
+                    transition: 'opacity 0.2s'
+                });
+
+                win.document.body.appendChild(toast);
+
+                // 动画显示
+                requestAnimationFrame(() => { toast.style.opacity = '1'; });
+
+                // 1秒后自动消失
+                setTimeout(() => {
+                    toast.style.opacity = '0';
+                    setTimeout(() => {
+                        toast.remove();
+                    }, 200);
+                }, 1000);
+            };
 
             // ==================== 劫持所有 file input ====================
             function hijackFileInputs() {

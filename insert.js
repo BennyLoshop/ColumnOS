@@ -162,24 +162,24 @@
             const db = await this.dbp;
             const tx = db.transaction("files", "readwrite");
             const store = tx.objectStore("files");
-            return new Promise(resolve => {
-                store.openCursor().onsuccess = e => {
-                    const cur = e.target.result;
-                    if (!cur) return resolve(true);
-                    const key = cur.key;
 
-                    // 只删除前缀匹配的直接子路径
-                    if (key.startsWith(prefix)) {
-                        const rel = key.slice(prefix.length);
-                        if (!rel.includes("/")) { // 仅删除直接子文件或子目录
-                            cur.delete();
-                        }
+            return new Promise((resolve, reject) => {
+                const request = store.openCursor();
+                request.onsuccess = async (e) => {
+                    const cursor = e.target.result;
+                    if (!cursor) return resolve(true);
+                    const key = cursor.key;
+
+                    // 删除路径匹配的文件或目录（包括所有子目录/文件）
+                    if (key === path || key.startsWith(prefix)) {
+                        cursor.delete();
                     }
-
-                    cur.continue();
+                    cursor.continue();
                 };
+                request.onerror = (err) => reject(err);
             });
         }
+
 
         async renameDir(path, newName) {
             path = this._normalize(path);

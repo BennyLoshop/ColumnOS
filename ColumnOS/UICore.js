@@ -126,6 +126,9 @@ taskbar.innerHTML = `
     `;
 document.body.prepend(taskbar);
 
+// 调用一次，taskbar 创建完成后
+loadTaskbarIcons();
+
 
 // ---------- Launchpad ----------
 const overlay = document.createElement('div');
@@ -165,74 +168,175 @@ function setAppList(list) {
     // 按名字拼音排序
     apps.sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN-u-co-pinyin'));
 }
-
-// 创建 Launchpad UI
+// ---------- 创建 Launchpad UI ----------
 function createLaunchpad() {
     container.innerHTML = '';
+
     apps.forEach(app => {
         const appDiv = document.createElement('div');
         appDiv.className = 'launchpad-app';
+        Object.assign(appDiv.style, {
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            transition: 'transform 0.2s'
+        });
+
+        appDiv.onmouseenter = () => { appDiv.style.transform = 'scale(1.1)'; };
+        appDiv.onmouseleave = () => { appDiv.style.transform = 'scale(1)'; };
 
         const iconDiv = document.createElement('div');
         iconDiv.className = 'launchpad-app-icon';
+        Object.assign(iconDiv.style, {
+            width: '60px',
+            height: '60px',
+            borderRadius: '12px',
+            backgroundColor: '#444',
+            marginBottom: '8px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '28px',
+            overflow: 'hidden'
+        });
 
         if (app.icon instanceof Blob) {
             const img = document.createElement('img');
             img.src = URL.createObjectURL(app.icon);
+            img.style.width = '100%';
+            img.style.height = '100%';
+            img.style.objectFit = 'cover';
             iconDiv.appendChild(img);
-        } else if (typeof app.icon === 'string' && (app.icon.startsWith('http://') || app.icon.startsWith('https://') || app.icon.startsWith('/'))) {
+        } else if (typeof app.icon === 'string') {
             const img = document.createElement('img');
             img.src = app.icon;
+            img.style.width = '100%';
+            img.style.height = '100%';
+            img.style.objectFit = 'cover';
             iconDiv.appendChild(img);
         } else {
-            iconDiv.textContent = app.icon;
+            iconDiv.textContent = app.icon || '?';
         }
 
         const nameDiv = document.createElement('div');
         nameDiv.className = 'launchpad-app-name';
         nameDiv.textContent = app.name;
+        Object.assign(nameDiv.style, { fontSize: '12px', textAlign: 'center', color: '#ddd' });
 
         appDiv.appendChild(iconDiv);
         appDiv.appendChild(nameDiv);
 
+        // 点击打开应用
         appDiv.onclick = async () => {
-            // 启动应用
             createVApp(app.id);
-
-            // 关闭 Launchpad
             closeLaunchpad();
-
-            // 刷新 apps 列表
             try {
                 const list = await getAppList();
                 setAppList(list);
             } catch { }
         };
 
+        // PC右键 / 移动端长按卸载非系统应用
+        if (!app.id.startsWith("com.columnos.")) {
+            const showMenu = (x, y) => {
+                let menu = document.getElementById('launchpad-context-menu');
+                if (!menu) {
+                    menu = document.createElement('div');
+                    menu.id = 'launchpad-context-menu';
+                    Object.assign(menu.style, {
+                        position: 'fixed',
+                        background: '#2b2b2b',
+                        color: '#ddd',
+                        borderRadius: '8px',
+                        padding: '8px 12px',
+                        zIndex: 10003,
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.5)',
+                        cursor: 'pointer'
+                    });
+                    menu.innerText = '卸载应用';
+                    document.body.appendChild(menu);
+
+                    menu.onclick = async () => {
+                        try {
+                            // 删除 app 目录
+                            await window.globalVfs.deleteDir(`/app/${app.id}`);
+
+                            // 关闭应用对应 AppDiv
+                            const appDivToClose = document.getElementById(`column-os-app-div-${app.id}`);
+                            if (appDivToClose) appDivToClose.remove();
+                            switchAppDiv(0);
+
+                            // 更新 appManifest.json
+                            const manifestBlob = await window.globalVfs.getFile("/systemdata/appManifest.json");
+                            if (manifestBlob) {
+                                const text = await manifestBlob.text();
+                                let appList = [];
+                                try { appList = JSON.parse(text); } catch { }
+                                appList = appList.filter(a => a.appId !== app.id);
+                                const newBlob = new Blob([JSON.stringify(appList, null, 2)], { type: "application/json" });
+                                await window.globalVfs.setFile("/systemdata/appManifest.json", newBlob);
+                            }
+
+                            apps = apps.filter(a => a.id !== app.id);
+                            createLaunchpad(); // 刷新 Launchpad UI
+                        } catch (err) {
+                            alert('卸载失败: ' + err.message);
+                        }
+                        menu.remove();
+                    };
+                }
+                menu.style.left = `${x}px`;
+                menu.style.top = `${y}px`;
+                menu.style.display = 'block';
+                const hideMenu = () => { menu.style.display = 'none'; document.removeEventListener('click', hideMenu); };
+                setTimeout(() => document.addEventListener('click', hideMenu), 0);
+            };
+
+            // PC右键
+            appDiv.oncontextmenu = e => { e.preventDefault(); showMenu(e.clientX, e.clientY); };
+            // 移动端长按
+            let pressTimer;
+            appDiv.ontouchstart = e => {
+                pressTimer = setTimeout(() => {
+                    const touch = e.touches[0];
+                    showMenu(touch.clientX, touch.clientY);
+                }, 600);
+            };
+            appDiv.ontouchend = appDiv.ontouchmove = () => clearTimeout(pressTimer);
+        }
+
         container.appendChild(appDiv);
     });
 }
 
-// ================= Launchpad 按钮事件 =================
-document.getElementById('all-apps-btn').onclick = () => {
-    createLaunchpad();          // 创建 UI
+
+// ---------- 打开 / 关闭 Launchpad ----------
+function openLaunchpad() {
+    createLaunchpad();
     overlay.style.display = 'flex';
     container.classList.remove('show');
     setTimeout(() => container.classList.add('show'), 10);
-};
-// 点击 overlay 空白处关闭
-overlay.onclick = (e) => {
-    if (e.target === overlay) {
-        closeLaunchpad();
-    }
-};
+}
+function closeLaunchpad() {
+    container.classList.remove('show');
+    setTimeout(() => overlay.style.display = 'none', 300);
+}
+
+// ---------- overlay 点击空白处关闭 ----------
+overlay.onclick = e => { if (e.target === overlay) closeLaunchpad(); };
+
+// ---------- Launchpad 按钮绑定 ----------
+const allAppsBtn = document.getElementById('all-apps-btn');
+if (allAppsBtn) allAppsBtn.onclick = openLaunchpad;
 
 // ================= 示例：创建/切换 VApp =================
-function createVApp(id) {
+function createVApp(id, options = null) {
     const divId = `column-os-app-div-${id}`;
     const existingDiv = document.getElementById(divId);
 
-    if (existingDiv) {
+    if (existingDiv && (!options)) {
         // 应用已打开，直接切换
         switchAppDiv(id);
         return;
@@ -246,7 +350,7 @@ function createVApp(id) {
     if (id.startsWith("com.columnos")) apppath = `/system/app/${id}/`;
     else apppath = `/app/${id}/`;
 
-    const vapp = new VApp(window.globalVfs, "http://appdata/", apppath);
+    const vapp = new VApp(window.globalVfs, "http://appdata/", apppath, options || {});
     vapp.bind(`column-os-iframe-${id}`);
     vapp.load("index.html");
 }
@@ -494,6 +598,82 @@ async function saveCurrentSnapshot() {
         console.warn('截图失败:', err);
     }
 }
+async function loadTaskbarIcons() {
+    let iconType = 1; // 默认：图标 + 文字
+
+    try {
+        const settingsBlob = await window.globalVfs.getFile("/systemdata/settings/uisettings.json");
+        if (settingsBlob) {
+            const settingsText = await settingsBlob.text();
+            const settingsJson = JSON.parse(settingsText);
+            if (typeof settingsJson.taskbarIconType === "number") {
+                iconType = settingsJson.taskbarIconType;
+            }
+        }
+    } catch (err) {
+        console.warn("无法读取 uisettings.json，使用默认配置(1)", err);
+    }
+
+    const btnMap = [
+        { id: "home-btn", file: "home.png" },
+        { id: "all-apps-btn", file: "app.png" },
+        { id: "tasks-btn", file: "task.png" },
+        { id: "lock-btn", file: "lock.png" }
+    ];
+
+    for (const btnInfo of btnMap) {
+        const btn = document.getElementById(btnInfo.id);
+        if (!btn) continue;
+
+        // 记录原始文字（只记录一次）
+        if (!btn.dataset.title) {
+            btn.dataset.title = btn.innerText.trim();
+        }
+
+        // 清空，以便重构内容
+        btn.innerHTML = "";
+
+        let iconUrl = null;
+
+        try {
+            const blob = await window.globalVfs.getFile(`/system/res/${btnInfo.file}`);
+            if (blob) iconUrl = URL.createObjectURL(blob);
+        } catch (err) {
+            console.warn("加载图标失败", btnInfo.file, err);
+        }
+
+        // 创建图标元素
+        let img = null;
+        if (iconUrl) {
+            img = document.createElement("img");
+            img.src = iconUrl;
+            img.style.width = "18px";
+            img.style.height = "18px";
+            img.style.verticalAlign = "middle";
+        }
+
+        // 显示模式处理
+        if (iconType === 0) {
+            // 文字模式
+            btn.textContent = btn.dataset.title;
+
+        } else if (iconType === 1) {
+            // 图标 + 文字
+            if (img) {
+                img.style.marginRight = "6px";
+                btn.appendChild(img);
+            }
+            btn.appendChild(document.createTextNode(btn.dataset.title));
+
+        } else if (iconType === 2) {
+            // 仅图标
+            if (img) btn.appendChild(img);
+            else btn.textContent = btn.dataset.title; // fallback
+        }
+    }
+}
+
+
 async function showTaskView() {
     if (taskViewOverlay) taskViewOverlay.remove();
 

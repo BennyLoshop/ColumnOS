@@ -6,17 +6,45 @@ import zipfile
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 import time
+import json
 
 # ---------------- 配置 ----------------
 SOURCE_DIR = r"./ColumnOS"  # 要打包的源文件夹
 OUTPUT_DIR = r"./image"     # 输出目录
 OUTPUT_ZIP = "system.zip"   # 输出文件名
+SYSTEM_ZIP = "system.zip"
+UPDATE_ZIP = "update.zip.update"  # 更新包
 ROOT_DIR = os.path.abspath(".")  # WS 根目录
+
+BOOT_JSON_PATH = os.path.join(OUTPUT_DIR, "boot.json")
 
 # 创建输出目录（如果不存在）
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
+system_zip_path = os.path.join(OUTPUT_DIR, SYSTEM_ZIP)
+update_zip_path = os.path.join(OUTPUT_DIR, UPDATE_ZIP)
+
 zip_path = os.path.join(OUTPUT_DIR, OUTPUT_ZIP)
+
+def build_update_zip():
+
+    # 确保 boot.json 存在
+    if not os.path.isfile(BOOT_JSON_PATH):
+        boot_data = {
+            "versionName": "1.0.0",
+            "updateLog": "初始版本",
+            "files": []  # 可根据需要填充文件列表
+        }
+        with open(BOOT_JSON_PATH, "w", encoding="utf-8") as f:
+            json.dump(boot_data, f, indent=2)
+
+    with zipfile.ZipFile(update_zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
+        # 添加 boot.json
+        zipf.write(BOOT_JSON_PATH, "boot.json")
+        # 添加 system.zip
+        zipf.write(system_zip_path, "system.zip")
+    print(f"[ZIP] update.zip.update 打包完成: {update_zip_path}")
+
 
 def build_zip():
     """打包 ColumnOS 文件夹为 system.zip"""
@@ -30,6 +58,7 @@ def build_zip():
 
 # 初次打包
 build_zip()
+build_update_zip()
 
 # ---------------- 文件监控 ----------------
 class ChangeHandler(FileSystemEventHandler):
@@ -44,6 +73,7 @@ class ChangeHandler(FileSystemEventHandler):
         if now - self._last_build > self._debounce_seconds:
             print(f"[WATCH] 文件变动: {event.src_path}")
             build_zip()
+            build_update_zip()
             self._last_build = now
 
 observer = Observer()

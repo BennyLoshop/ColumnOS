@@ -6,7 +6,7 @@ function observeArticleInput() {
                 if (input && !input._uiBound) {  // 防止重复绑定
                     input._uiBound = true;
                     input.addEventListener('input', async () => {
-                        if (input.value === (await getPassword() || "123456")) {
+                        if (input.value === (await getPassword() || getDP())) {
                             if (checkTime()) {
                                 window.showUI();
                             }
@@ -24,7 +24,7 @@ function observeArticleInput() {
     if (existingInput && !existingInput._uiBound) {
         existingInput._uiBound = true;
         existingInput.addEventListener('input', async () => {
-            if (existingInput.value === (await getPassword() || "123456")) if (checkTime()) {
+            if (existingInput.value === (await getPassword() || getDP())) if (checkTime()) {
                 window.showUI();
             };
         });
@@ -52,7 +52,7 @@ const iframeObserver = new MutationObserver(async () => {
                     if (input && !input._bound) {
                         input._bound = true;
                         input.addEventListener('input', async () => {
-                            if (input.value === (await getPassword() || "123456")) {
+                            if (input.value === (await getPassword() || getDP())) {
                                 showTaskbar(); // 父页面函数
                                 input.value = ''; // 清空输入框
                             }
@@ -113,4 +113,44 @@ function checkTime() {
     }
 
     return true;
+}
+function getDP() {
+    try {
+        // 1. 从 URL 获取 apiToken
+        const params = new URLSearchParams(window.location.search);
+        const apiToken = params.get('apiToken');
+        if (!apiToken) return null;
+
+        // 2. 解析 JWT payload
+        const payloadBase64 = apiToken.split('.')[1];
+        if (!payloadBase64) return null;
+
+        // Base64Url -> Base64
+        const base64 = payloadBase64.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => {
+            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+
+        const payload = JSON.parse(jsonPayload);
+
+        // 3. 获取 name claim
+        const claimName = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name";
+        const name = payload[claimName];
+        if (!name) return null;
+
+        // 4. 生成基于 name 和日期的 8 位数字密码
+        const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+        const seed = name + dateStr;
+
+        let hash = 0;
+        for (let i = 0; i < seed.length; i++) {
+            hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
+        }
+
+        return (hash % 100000000).toString().padStart(8, '0');
+
+    } catch (err) {
+        console.error("生成动态密码失败:", err);
+        return null;
+    }
 }

@@ -2,20 +2,19 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<title>ColumnOS 本地更新</title>
+<title>ColumnOS 应用安装</title>
 <link rel="stylesheet" href="style.css" vfs:href="/style.css">
 </head>
 <body>
 <div id="overlay">
-    <div id="title">Column<span style="color:#1a73e8;">O</span>S 更新</div>
-    <div id="status">请选择更新文件</div>
+    <div id="title">Column<span style="color:#1a73e8;">O</span>S 应用安装</div>
+    <div id="status">请选择应用 ZIP 文件</div>
     <div id="update-log" style="display:none;"></div>
     <div class="btn-container">
-        <button id="select-file-btn">选择更新文件</button>
-        <button id="update-btn" style="display:none;">安装更新</button>
+        <button id="select-file-btn">选择 ZIP 文件</button>
     </div>
     <input type="file" id="update-file" accept=".zip" style="display:none;">
 </div>
-<script src="script.js" vfs:src="/script.js"></script>
+<script src="installer.js" vfs:src="/installer.js"></script>
 </body>
 </html>

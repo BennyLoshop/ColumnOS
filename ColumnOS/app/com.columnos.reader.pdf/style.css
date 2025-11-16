@@ -30,10 +30,10 @@ input[type=range] { width: 80px; }
 /* Canvas 占满高度 */
 #canvasContainer {
     position: fixed;
-    top: 50px;
+    top: 0px;
     left: 0;
     width: 100%;
-    height: calc(100vh - 50px);
+    height: calc(100vh);
     overflow-y: auto;
     background: #fff;
 }

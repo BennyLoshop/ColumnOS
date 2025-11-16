@@ -1,18 +1,25 @@
-body, html {
-    margin: 0; padding: 0; height: 100%; font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+body,
+html {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
     background-color: #1e1e1e;
     color: #ddd;
-    display: flex; overflow: hidden;
+    display: flex;
+    overflow: hidden;
 }
 
 /* 左侧分类栏 */
 #settings-categories {
-    width: 240px; /* 固定宽度 */
+    width: 240px;
+    /* 固定宽度 */
     background: #2b2b2b;
     border-right: 1px solid #444;
     display: flex;
     flex-direction: column;
-    flex-shrink: 0; /* 避免收缩 */
+    flex-shrink: 0;
+    /* 避免收缩 */
     box-sizing: border-box;
 }
 
@@ -24,21 +31,25 @@ body, html {
     box-sizing: border-box;
 }
 
-.category-item:hover, .category-item.active {
+.category-item:hover,
+.category-item.active {
     background-color: #3c3c3c;
 }
 
 /* 右侧设置内容 */
 #settings-content {
-    flex: 1 1 auto; /* 占满剩余空间 */
+    flex: 1 1 auto;
+    /* 占满剩余空间 */
     padding: 20px;
     overflow-y: auto;
     background: #1e1e1e;
-    box-sizing: border-box; /* 防止 padding 导致额外空间 */
+    box-sizing: border-box;
+    /* 防止 padding 导致额外空间 */
 }
 
 /* 通用输入框 */
-input[type="password"], input[type="text"] {
+input[type="password"],
+input[type="text"] {
     padding: 10px;
     width: 100%;
     max-width: 300px;
@@ -51,7 +62,9 @@ input[type="password"], input[type="text"] {
     color: #fff;
 }
 
-input::placeholder { color: #888; }
+input::placeholder {
+    color: #888;
+}
 
 button {
     padding: 10px 16px;
@@ -69,11 +82,16 @@ button:disabled {
     cursor: not-allowed;
 }
 
-h2 { margin-top: 0; }
+h2 {
+    margin-top: 0;
+}
 
 /* 移动端自适应 */
 @media (max-width: 600px) {
-    body { flex-direction: column; }
+    body {
+        flex-direction: column;
+    }
+
     #settings-categories {
         width: 100%;
         max-width: 100%;
@@ -82,10 +100,94 @@ h2 { margin-top: 0; }
         border-right: none;
         border-bottom: 1px solid #444;
     }
+
     .category-item {
         flex: 1;
         text-align: center;
         border-bottom: none;
         border-right: 1px solid #333;
     }
+}
+
+/* =========== 个性化界面样式 =========== */
+.personalize-group {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin-top: 15px;
+    width: 100%;
+}
+
+.option-row {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: rgba(0, 0, 0, 0.05);
+    cursor: pointer;
+    transition: 0.15s;
+    box-sizing: border-box;
+}
+
+.option-row:hover {
+    background: rgba(0, 0, 0, 0.1);
+}
+
+.option-row.active {
+    background: rgba(0, 122, 255, 0.18);
+}
+
+.option-preview {
+    width: 140px;
+    /* ⭐加宽，保证完整显示 */
+    height: 60px;
+    background-size: contain;
+    /* ⭐完整显示不裁切 */
+    background-repeat: no-repeat;
+    background-position: center;
+    border-radius: 10px;
+    margin-right: 16px;
+    flex-shrink: 0;
+}
+
+/* 文本区占满剩余空间 */
+.option-textbox {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+}
+
+/* 圆点 */
+.option-dot {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 2px solid #666;
+    transition: 0.2s;
+}
+
+.option-row.active .option-dot {
+    border-color: #007aff;
+    background: #007aff;
+}
+
+.option-title {
+    font-size: 16px;
+}
+
+html,
+body {
+    overscroll-behavior: none;
+    /* 阻止滚动链式反弹 */
+    -webkit-overflow-scrolling: auto;
+    /* iOS 弹性滚动改为普通滚动 */
+    overflow: hidden;
+    /* 需要可滚动的元素另行处理 */
+}
+
+* {
+    -webkit-tap-highlight-color: transparent;
+    /* 去掉触摸高亮 */
 }

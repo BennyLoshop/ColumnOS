@@ -26,71 +26,102 @@ let currentPdfMD5 = null; // 当前 PDF MD5
 
 // ---------- 等待 vapp 就绪 ----------
 window.addEventListener('DOMContentLoaded', () => {
-    const waitForVappOk = () => {
-        try {
-            if (window.vappok) {
-                setupPdfWorker();
-            } else {
-                requestAnimationFrame(waitForVappOk);
-            }
-        } catch (e) {
-            requestAnimationFrame(waitForVappOk);
+  const waitForVappOk = async () => {
+    try {
+      if (window.vappok) {
+        await setupPdfWorker();
+
+        // ---------- 自动打开 vapp.params.file ----------
+        const filePath = window.vapp.params?.file;
+
+        if (filePath) {
+          try {
+            const blob = await window.vapp.globalVfs.getFile(filePath);
+            if (!blob) throw new Error("VFS 文件不存在: " + filePath);
+
+            pdfFileArrayBuffer = await blob.arrayBuffer();
+            pdfNameSpan.textContent = filePath.split('/').pop();
+
+            // 计算 MD5
+            currentPdfMD5 = calculateMD5(pdfFileArrayBuffer);
+
+            // 加载 PDF
+            pdfDoc = await pdfjsLib.getDocument({ data: pdfFileArrayBuffer, worker: null }).promise;
+            totalPages = pdfDoc.numPages;
+            pageCache = {};
+
+            // 恢复进度
+            currentPage = await getProgress(currentPdfMD5);
+            queueRender(currentPage);
+
+          } catch (e) {
+            console.error("自动打开文件失败:", e);
+            showToast("无法打开指定文件");
+            openFileBtn.disabled = false;
+          }
         }
-    };
-    waitForVappOk();
+      } else {
+        requestAnimationFrame(waitForVappOk);
+      }
+    } catch (e) {
+      requestAnimationFrame(waitForVappOk);
+    }
+  };
+  waitForVappOk();
 });
 
+
 async function setupPdfWorker() {
-    try {
-        if (!window.vapp.globalVfs) throw new Error("globalVfs 未就绪");
-        const blob = await window.vapp.globalVfs.getFile("/system/app/com.columnos.reader.pdf/pdf.worker.min.js");
-        if (!blob) throw new Error("pdf.worker.min.js 未找到");
-        const blobUrl = URL.createObjectURL(blob);
-        pdfjsLib.GlobalWorkerOptions.workerSrc = blobUrl;
-        console.log('PDF.js Worker 已就绪');
-    } catch (err) {
-        console.error('设置 PDF Worker 出错', err);
-    }
+  try {
+    if (!window.vapp.globalVfs) throw new Error("globalVfs 未就绪");
+    const blob = await window.vapp.globalVfs.getFile("/system/app/com.columnos.reader.pdf/pdf.worker.min.js");
+    if (!blob) throw new Error("pdf.worker.min.js 未找到");
+    const blobUrl = URL.createObjectURL(blob);
+    pdfjsLib.GlobalWorkerOptions.workerSrc = blobUrl;
+    console.log('PDF.js Worker 已就绪');
+  } catch (err) {
+    console.error('设置 PDF Worker 出错', err);
+  }
 }
 
 // ---------- MD5 计算 ----------
 function calculateMD5(arrayBuffer) {
-    return SparkMD5.ArrayBuffer.hash(arrayBuffer);
+  return SparkMD5.ArrayBuffer.hash(arrayBuffer);
 }
 
 
 // ---------- IndexedDB ----------
 function openDB() {
-    return new Promise((resolve, reject) => {
-        const request = indexedDB.open('pdfReaderDB', 1);
-        request.onupgradeneeded = event => {
-            const db = event.target.result;
-            if (!db.objectStoreNames.contains('progressStore')) {
-                db.createObjectStore('progressStore', { keyPath: 'md5' });
-            }
-        };
-        request.onsuccess = event => resolve(event.target.result);
-        request.onerror = event => reject(event.target.error);
-    });
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open('pdfReaderDB', 1);
+    request.onupgradeneeded = event => {
+      const db = event.target.result;
+      if (!db.objectStoreNames.contains('progressStore')) {
+        db.createObjectStore('progressStore', { keyPath: 'md5' });
+      }
+    };
+    request.onsuccess = event => resolve(event.target.result);
+    request.onerror = event => reject(event.target.error);
+  });
 }
 
 async function saveProgress(md5, page) {
-    const db = await openDB();
-    const tx = db.transaction('progressStore', 'readwrite');
-    const store = tx.objectStore('progressStore');
-    store.put({ md5, page });
-    await tx.complete;
+  const db = await openDB();
+  const tx = db.transaction('progressStore', 'readwrite');
+  const store = tx.objectStore('progressStore');
+  store.put({ md5, page });
+  await tx.complete;
 }
 
 async function getProgress(md5) {
-    const db = await openDB();
-    return new Promise((resolve, reject) => {
-        const tx = db.transaction('progressStore', 'readonly');
-        const store = tx.objectStore('progressStore');
-        const request = store.get(md5);
-        request.onsuccess = () => resolve(request.result?.page || 1);
-        request.onerror = () => reject(request.error);
-    });
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('progressStore', 'readonly');
+    const store = tx.objectStore('progressStore');
+    const request = store.get(md5);
+    request.onsuccess = () => resolve(request.result?.page || 1);
+    request.onerror = () => reject(request.error);
+  });
 }
 
 // ---------- 缓存前后 2 页 ----------
@@ -159,17 +190,17 @@ function updateNavButtons() {
 }
 
 // ---------- 翻页按钮 ----------
-prevBtn.addEventListener('click', () => { 
-  if (currentPage > 1) { 
-    currentPage--; 
-    queueRender(currentPage, true); 
-  } 
+prevBtn.addEventListener('click', () => {
+  if (currentPage > 1) {
+    currentPage--;
+    queueRender(currentPage, true);
+  }
 });
-nextBtn.addEventListener('click', () => { 
-  if (currentPage < totalPages) { 
-    currentPage++; 
-    queueRender(currentPage, true); 
-  } 
+nextBtn.addEventListener('click', () => {
+  if (currentPage < totalPages) {
+    currentPage++;
+    queueRender(currentPage, true);
+  }
 });
 
 // ---------- 跳页 ----------

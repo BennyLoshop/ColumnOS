@@ -2,7 +2,7 @@
   {
     "appName": "设置",
     "appId": "com.columnos.settings",
-    "appIcon": "/system/app/com.columnos.settings/icon.jpg"
+    "appIcon": "/system/app/com.columnos.settings/icon.png"
   },
   {
     "appName": "关于",
@@ -33,5 +33,10 @@
     "appName": "视频播放器",
     "appId": "com.columnos.reader.video",
     "appIcon": "/system/app/com.columnos.reader.video/icon.png"
+  },
+  {
+    "appName": "应用安装程序",
+    "appId": "com.columnos.appinstaller",
+    "appIcon": "/system/app/com.columnos.appinstaller/icon.png"
   }
 ]
