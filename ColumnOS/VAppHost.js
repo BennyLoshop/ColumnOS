@@ -327,7 +327,26 @@
             const observer = new MutationObserver(hijackFileInputs);
             observer.observe(win.document.body, { childList: true, subtree: true });
 
-            
+
+            // ===================== 注入 exit =====================
+            win.vapp.exit = () => {
+                try {
+                    // 找到当前 iframe 的父容器（AppDiv 或 iframe 父节点）
+                    const iframeEl = win.frameElement;
+                    if (!iframeEl) return;
+
+                    const parentDiv = iframeEl.parentNode;
+                    if (!parentDiv) return;
+
+                    // 移除 iframe
+                    parentDiv.remove();
+
+                    // 如果有全局函数 switchAppDiv 可以回到主页
+                    if (typeof window.switchAppDiv === 'function') window.switchAppDiv('0');
+                } catch (err) {
+                    console.error('vapp.exit error:', err);
+                }
+            };
 
 
         }

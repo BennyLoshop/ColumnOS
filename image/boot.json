@@ -6,6 +6,7 @@
     "src/xiyueta.min.js",
     "rewriter.js",
     "VAppHost.js",
+    "pushService.js",
     "UICore.js",
     "safety.js",
     "ColumnOS.js"

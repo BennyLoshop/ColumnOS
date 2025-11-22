@@ -84,11 +84,8 @@ window.hideTaskbar = function hideTaskbar() {
         taskbar.style.display = 'none';
     }, 400);
 };
-// ---------- 样式 ----------
 const style = document.createElement('style');
 style.textContent = `
-        html, body { margin:0; padding:0; height:100%; overflow:hidden; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif; background-color:#1e1e1e; color:#ddd; }
-
         /* Taskbar */
         #columnos-taskbar {
             display:none;position: fixed; top: -60px; left:0; width:100%; height:50px; background-color:#2b2b2b; color:#ddd; display:flex; justify-content:space-between; align-items:center; padding:0 20px; z-index:9999; box-shadow:0 1px 5px rgba(0,0,0,0.5); border-bottom:1px solid #444;
@@ -116,7 +113,6 @@ style.textContent = `
         #columnos-iframe { display:none;position:fixed; top:50px; left:0; width:100%; height:calc(100% - 50px); border:none; background-color:#1e1e1e; }
     `;
 document.head.appendChild(style);
-
 // ---------- Taskbar ----------
 const taskbar = document.createElement('div');
 taskbar.id = 'columnos-taskbar';
@@ -356,6 +352,81 @@ function createVApp(id, options = null) {
 }
 
 window.showUI = function showUI() {
+    (function () {
+        console.log("Starting JsToJava override interval");
+        const fakeJsToJava = {
+            checkUrls: function (urls) {
+                console.log("Fake JsToJava.checkUrls:", urls);
+                return "[]";
+            }
+        };
+
+        function override() {
+            try {
+                Object.defineProperty(window, 'JsToJava', {
+                    value: fakeJsToJava,
+                    writable: true,        // 仍允许你自己的 setInterval 覆盖
+                    configurable: true,    // 允许再次重写
+                    enumerable: false
+                });
+            } catch (e) { }
+        }
+
+        // 首次覆盖
+        override();
+
+        // 每 100ms 再覆盖一次
+        setInterval(override, 100);
+        // 初始化自己的历史记录 state// 初始化自己的历史记录 state
+        // ------------------ 返回按钮处理（只针对 AppDiv） ------------------
+        function setupBackHandler() {
+            // 拦截浏览器返回或安卓返回键
+            window.addEventListener('popstate', async (e) => {
+                e.preventDefault();
+                history.pushState(null, '', location.href); // 保持在当前页面
+
+                // 找到当前活跃的非主 AppDiv
+                const activeApp = Array.from(document.body.children)
+                    .find(c => c.id.startsWith('column-os-app-div-') && c.style.display !== 'none');
+
+                if (!activeApp) return; // 没有活跃的 AppDiv，不处理
+
+                // 构造事件
+                const event = new CustomEvent('OnVappReturn', { cancelable: true });
+
+                // 触发事件到 iframe 内
+                const iframe = activeApp.querySelector('iframe');
+                let prevent = false;
+                try {
+                    iframe?.contentWindow?.dispatchEvent(event);
+                    prevent = event.defaultPrevented;
+                } catch (err) {
+                    console.warn('发送 OnVappReturn 事件失败', err);
+                }
+
+                // 如果没有 preventDefault 就关闭 AppDiv
+                if (!prevent) {
+                    activeApp.remove();
+                    switchAppDiv('0');
+                }
+            });
+
+            // 初始化历史记录 state
+            history.pushState(null, '', location.href);
+        }
+
+        // ------------------ 调用一次即可 ------------------
+        setupBackHandler();
+
+    })();
+    // ---------- 样式 ----------
+    const style = document.createElement('style');
+    style.textContent = `
+        html, body { margin:0; padding:0; height:100%; overflow:hidden; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif; background-color:#1e1e1e; color:#ddd; }
+
+    `;
+    document.head.appendChild(style);
+
 
     const taskbar = document.getElementById('columnos-taskbar');
     const iframe = document.getElementById('columnos-iframe');
@@ -403,58 +474,134 @@ overlay.onclick = (e) => {
 };
 function patchIframeJsBridge(iframe) {
     console.log("Patching iframe JsBridge");
-    if (!iframe || !iframe.contentWindow) return;
+    if (!iframe) return;
 
-    const cw = iframe.contentWindow;
+    let timerId = null;
+    let paused = false;  // 🔥 获取失败时暂停
+    let busy = false;
 
-    // 解析 JWT payload
     function parseJwt(token) {
         try {
             const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
-            const jsonPayload = decodeURIComponent(atob(base64).split('').map(function (c) {
-                return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-            }).join(''));
+            const jsonPayload = decodeURIComponent(atob(base64).split('').map(c =>
+                '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
+            ).join(''));
             return JSON.parse(jsonPayload);
         } catch (e) {
-            console.warn('JWT 解析失败', e);
+            console.warn("JWT 解析失败", e);
             return null;
         }
     }
 
-    let busy = false;  // 防并发锁
+    // ---------- 🔥 启动监控 ----------
+    function startTimer() {
+        if (timerId || paused) return;
 
-    let timerId = setInterval(async () => {
-        if (busy) return; // 上一次还没结束，直接跳过
+        timerId = setInterval(checkToken, 100);
+        console.log("Token监控已启动");
+    }
+
+    // ---------- 🔥 停止监控 ----------
+    function stopTimer() {
+        if (timerId) {
+            clearInterval(timerId);
+            timerId = null;
+            console.log("Token监控已停止");
+        }
+    }
+
+    // ---------- 🔥 检查 Token ----------
+    async function checkToken() {
+        if (busy || paused) return;
         busy = true;
 
         try {
             const url = new URL(iframe.src);
-            const token = url.searchParams.get('apiToken');
+            const token = url.searchParams.get("apiToken");
             if (!token) { busy = false; return; }
 
             const payload = parseJwt(token);
-            if (!payload || !payload.exp) { busy = false; return; }
+            if (!payload?.exp) { busy = false; return; }
 
             const now = Math.floor(Date.now() / 1000);
-            const secondsLeft = payload.exp - now;
+            const left = payload.exp - now;
 
-            if (secondsLeft <= 30) {
-                if (typeof getNewUrl === 'function') {
-                    const newUrl = await getNewUrl();   // 防止并发的重要部分
-                    console.log("新 URL :", newUrl);
-                    iframe.src = newUrl;
+            if (left <= 30) {
+                console.log("Token 即将过期, 尝试刷新");
+
+                const newUrl = await window.getNewUrl();
+
+                if (!newUrl) {
+                    // ========== 🔥 获取失败 → 停止定时器 ==========
+                    paused = true;
+                    stopTimer();
+
+                    iframe.srcdoc = expiredPageHtml();
+
+                    busy = false;
+                    return;
                 }
+
+                iframe.src = newUrl;
             }
+
         } catch (e) {
-            console.warn('监控 iframe token 出错', e);
+            console.warn("检查 token 出错", e);
         }
 
-        busy = false; // 标记执行完毕
-    }, 100);
+        busy = false;
+    }
 
-    return () => clearInterval(timerId);
+    // ---------- 🔥 登录过期页面（能恢复监控） ----------
+    function expiredPageHtml() {
+        return `
+        <html>
+        <body style="
+            display:flex;
+            justify-content:center;
+            align-items:center;
+            height:100vh;
+            background:#1e1e1e;
+            color:#eee;
+            font-family:sans-serif;
+            text-align:center;">
+            
+            <div>
+                <h2 style="margin-bottom:20px;">登录过期，请点击登录</h2>
+                <button id="reloginBtn"
+                    style="padding:10px 20px;font-size:16px;border:none;border-radius:6px;background:#1a73e8;color:#fff;cursor:pointer;">
+                    登录
+                </button>
+            </div>
+
+            <script>
+                document.getElementById("reloginBtn").onclick = async () => {
+                    if (window.parent.getNewUrl) {
+                        const u = await window.parent.getNewUrl();
+                        if (u) {
+                            window.location.href = u;
+                            window.parent.__resumeTokenWatch(); // 🔥恢复监控
+                        }
+                    }
+                };
+            </script>
+        </body>
+        </html>`;
+    }
+
+    // ---------- 🔥 暴露恢复入口 ----------
+    window.__resumeTokenWatch = function () {
+        paused = false;
+        startTimer();
+        console.log("Token监控已恢复");
+    };
+
+    // ---------- 初次启动 ----------
+    startTimer();
+
+    // 返回停止函数
+    return () => stopTimer();
 }
-
 
 
 id = setTimeout(() => {

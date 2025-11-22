@@ -90,7 +90,7 @@
                     } else if (["app"].includes(ext)) {
                         // 打开应用安装器
                         window.parent.createVApp("com.columnos.appinstaller", { file: filePath });
-                    }else {
+                    } else {
                         // 其他文件类型可选择提示或忽略
                         console.warn("不支持的文件类型:", ext);
                     }
@@ -182,6 +182,32 @@
             importStatus.innerText = "错误：" + err.message;
         }
     };
+    let lastBackTime = 0; // 上一次返回键触发时间
+    const backTimeout = 2000; // 1.5 秒内再次触发算退出
 
+    window.addEventListener('OnVappReturn', (e) => {
+        console.log('收到返回事件');
+
+        // 阻止默认关闭行为
+        e.preventDefault();
+
+        if (currentPath !== "/") {
+            // 当前不在根目录，返回上一级
+            const parts = currentPath.split("/").filter(p => p);
+            parts.pop();
+            refreshDir("/" + parts.join("/") || "/");
+        } else {
+            // 当前在根目录
+            const now = Date.now();
+            if (now - lastBackTime < backTimeout) {
+                // 1.5 秒内再次按返回，允许退出
+                console.log("退出应用或关闭页面");
+                vapp.exit(); // 或其他退出逻辑
+            } else {
+                alert("2s内再次返回退出");
+                lastBackTime = now;
+            }
+        }
+    });
 
 })();

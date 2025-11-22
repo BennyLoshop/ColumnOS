@@ -4,6 +4,7 @@
   "files": [
     "src/html2canvas.min.js",
     "src/xiyueta.min.js",
+    "src/crypto-js.min.js",
     "rewriter.js",
     "VAppHost.js",
     "UICore.js",
