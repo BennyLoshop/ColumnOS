@@ -209,5 +209,83 @@
             }
         }
     });
+    const btnCloudImport = document.getElementById("btn-cloud-import");
+    const cloudModal = document.getElementById("cloud-import-modal");
+    const cloudClose = document.getElementById("cloud-import-close");
+    const cloudStatus = document.getElementById("cloud-import-status");
+
+    let cloudImportStop = false;
+    let cloudImportTask = null;
+
+    btnCloudImport.onclick = () => {
+        cloudModal.classList.remove("modal-hidden");
+        cloudModal.classList.add("modal-visible");
+        cloudStatus.innerText = "开始搜索 chunkStore ...";
+
+        cloudImportStop = false;
+
+        // 启动云导入任务
+        if (!cloudImportTask) {
+            cloudImportTask = startCloudImport();
+        }
+    };
+
+    cloudClose.onclick = () => {
+        cloudImportStop = true;  // 停止循环
+        cloudModal.classList.remove("modal-visible");
+        cloudModal.classList.add("modal-hidden");
+    };
+
+    // ================== 云导入逻辑 ==================
+    async function startCloudImport() {
+        const identifier = "FILE00"; // 6位标识符
+
+        while (!cloudImportStop) {
+            const items = await window.vapp.chunkStore.search(identifier);
+            console.debug("云导入搜索结果:", items);
+
+            if (items && items.length > 0) {
+                for (const itemStr of items) {
+                    if (cloudImportStop) break;  // 关闭时立即退出
+                    try {
+                        const item = JSON.parse(itemStr);
+                        const fileName = item.fileName;
+                        const base64 = item.base64;
+
+                        // 显示保存进度动画
+                        cloudStatus.innerHTML = `<span class="cloud-loading"></span>正在导入：${fileName}`;
+
+                        const binaryStr = atob(base64);
+                        const len = binaryStr.length;
+                        const bytes = new Uint8Array(len);
+                        for (let i = 0; i < len; i++) bytes[i] = binaryStr.charCodeAt(i);
+
+                        const blob = new Blob([bytes], { type: "application/octet-stream" });
+
+                        await vapp.globalVfs.setFile(
+                            currentPath + (currentPath.endsWith("/") ? "" : "/") + fileName,
+                            blob
+                        );
+
+                        cloudStatus.innerText = `文件 "${fileName}" 导入成功！`;
+                        await refreshDir(currentPath);
+
+                        // 间隔 0.5 秒再导入下一条
+                        await new Promise(r => setTimeout(r, 500));
+                    } catch (err) {
+                        cloudStatus.innerText = "导入失败：" + err.message;
+                        console.error("云导入失败", err);
+                    }
+                }
+            } else {
+                cloudStatus.innerText = "chunkStore 没有新文件，继续搜索...";
+            }
+
+            await new Promise(r => setTimeout(r, 500));
+        }
+
+        cloudImportTask = null; // 完成或关闭后清理
+    }
+
 
 })();

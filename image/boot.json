@@ -4,8 +4,11 @@
   "files": [
     "src/html2canvas.min.js",
     "src/xiyueta.min.js",
+    "src/crypto-js.min.js",
+    "auth.js",
     "rewriter.js",
     "VAppHost.js",
+    "chunk.js",
     "pushService.js",
     "UICore.js",
     "safety.js",

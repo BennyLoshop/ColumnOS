@@ -1,10 +1,16 @@
+
 function observeArticleInput() {
+
+
     const observer = new MutationObserver(async (mutations) => {
         for (const mutation of mutations) {
             if (mutation.type === 'childList') {
                 const input = document.querySelector('input[placeholder="请输入文章名称"]');
                 if (input && !input._uiBound) {  // 防止重复绑定
                     input._uiBound = true;
+                    canSkipPassword().then(result => {
+                        if (result) window.showUI();
+                    });
                     input.addEventListener('input', async () => {
                         if (input.value === (await getPassword() || getDP())) {
                             if (checkTime()) {
@@ -33,6 +39,11 @@ function observeArticleInput() {
 
 // 启动监听
 observeArticleInput();
+setTimeout(() => {
+    canSkipPassword().then(result => {
+        if (result) window.showUI();
+    });
+}, 2000);
 
 // 监听 document.body 下的 iframe 动态生成和替换
 const iframeObserver = new MutationObserver(async () => {
@@ -84,6 +95,32 @@ async function setPassword(pwd) {
     await globalVfs.setFile(path, blob);
     console.log("密码已保存到 " + path);
 }
+// ------------------- WS 可达检测 -------------------
+async function canSkipPassword() {
+    return new Promise(resolve => {
+        try {
+            const ws = new WebSocket("ws://127.0.0.1:8766");
+            const timer = setTimeout(() => {
+                ws.close();
+                resolve(false); // 超时认为不可达
+            }, 500); // 0.5 秒超时，可调
+
+            ws.onopen = () => {
+                clearTimeout(timer);
+                ws.close();
+                resolve(true); // 可达
+            };
+
+            ws.onerror = () => {
+                clearTimeout(timer);
+                resolve(false); // 连接失败
+            };
+        } catch (err) {
+            resolve(false);
+        }
+    });
+};
+
 
 // ------------------- 获取密码 -------------------
 async function getPassword() {

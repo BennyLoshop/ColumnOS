@@ -5,6 +5,7 @@
     "src/html2canvas.min.js",
     "src/xiyueta.min.js",
     "src/crypto-js.min.js",
+    "auth.js",
     "rewriter.js",
     "VAppHost.js",
     "UICore.js",

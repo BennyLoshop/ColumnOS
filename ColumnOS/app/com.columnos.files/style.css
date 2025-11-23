@@ -167,3 +167,47 @@ button {
     border-color: #888;
     background-color: #333;
 }
+#cloud-import-modal.modal-hidden {
+    display: none;
+}
+
+#cloud-import-modal.modal-visible {
+    display: flex !important;
+}
+
+#cloud-import-modal {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0,0,0,0.7);
+    justify-content: center;
+    align-items: center;
+    z-index: 99999;
+}
+
+#cloud-import-modal .modal-content {
+    background: #222;
+    padding: 20px;
+    border-radius: 8px;
+    width: 400px;
+    max-width: 90%;
+    text-align: center; /* 文字居中 */
+}
+/* 保存进度动画 */
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.cloud-loading {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid #ccc;
+    border-top-color: #3a3a3a;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    vertical-align: middle;
+    margin-right: 6px;
+}

@@ -38,5 +38,10 @@
     "appName": "应用安装程序",
     "appId": "com.columnos.appinstaller",
     "appIcon": "/system/app/com.columnos.appinstaller/icon.png"
+  },
+  {
+    "appName": "信息",
+    "appId": "com.columnos.chat",
+    "appIcon": "/system/app/com.columnos.chat/icon.png"
   }
 ]
