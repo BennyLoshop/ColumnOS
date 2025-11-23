@@ -24,7 +24,7 @@ jobs:
       
       - name: Install Dependencies
         run: |
-          pip install -r requirements.txt
+          pip install -r requirement.txt
       
       - name: Build Windows Executable
         uses: Nuitka/Nuitka-Action@main
