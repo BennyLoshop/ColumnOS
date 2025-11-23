@@ -33,7 +33,7 @@ jobs:
           script-name: install.py
           mode: standalone
           enable-plugins: pyqt6
-          include-modules: |
+          include-module: |
             websockets.asyncio
             websockets.asyncio.server
             websockets.asyncio.client
