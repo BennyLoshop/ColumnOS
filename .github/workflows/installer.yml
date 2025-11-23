@@ -1,0 +1,47 @@
+name: Build Executables
+
+on:
+  push:
+    tags:
+      - 'stable-*' 
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          architecture: 'x64'
+          cache: 'pip'
+          cache-dependency-path: |
+            **/requirements*.txt
+      
+      - name: Install Dependencies
+        run: |
+          pip install -r requirements.txt
+      
+      - name: Build Windows Executable
+        uses: Nuitka/Nuitka-Action@main
+        with:
+          nuitka-version: main
+          script-name: install.py
+          mode: onefile
+          enable-plugins: tk-inter
+          include-package: customtkinter
+          windows-console-mode: disable
+          windows-icon-from-ico: icon.ico
+          output-file: Installer
+          
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Installer-Windows
+          path: build/*.exe
+          include-hidden-files: true
+
+  
