@@ -69,6 +69,8 @@
                 globalVfs: window.globalVfs,
                 globalUtils: window.globalUtils,
                 chunkStore: window.chunkStore,
+                pushToInbox: window.pushToInbox,
+                tokenStore: window.tokenStore,
                 // ============ 增加 getAppFile ============
                 // 传入相对于 vfsRoot 的路径，如 "/img/icon.png"
                 // 返回对应的 Blob
