@@ -66,7 +66,10 @@ async function getInbox() {
     let notesData;
     try {
         // 2. 请求所有笔记
-        const resp = await fetch(`${apiHost}/CloudNotes/api/Notes/GetAll`, {
+        const query = window.aesEncrypt("parentid=0&isNoteNode=true&timestamp=" + Date.now());
+
+        const resp = await fetch(`${apiHost}/CloudNotes/api/Notes/GetByParentId?${query}`, {
+
             method: "GET",
             headers: {
                 "Authorization": `Bearer ${apiToken}`,
@@ -93,7 +96,7 @@ async function getInbox() {
     }
 
     // 4. 找到 Inbox
-    const inbox = notesData.noteList.find(n => n.fileUrl === "ColumnOS Push Service Inbox" && n.type === 0);
+    const inbox = notesData.noteList.find(n => n.fileUrl === "ColumnOS Push Service Inbox v2" && n.type === 0);
     if (inbox) {
         window.inboxId = inbox.fileId;
         return inbox.fileId;
@@ -135,8 +138,8 @@ async function createInbox() {
     // 2. 构造数据并加密
     const payload = {
         fileId,
-        fileName: "ColumnOS Push Service Inbox",
-        fileUrl: "ColumnOS Push Service Inbox",
+        fileName: "ColumnOS Push Service Inbox v2",
+        fileUrl: "ColumnOS Push Service Inbox v2",
         parentId: "0",
         type: "0"
     };
@@ -270,40 +273,60 @@ async function pushToInbox(text, id6, token, apiHost) {
         return false;
     }
 
+    // 时间戳
+    const ts = () => Date.now();
+
+    // GET headers + no-cache
+    const noCacheHeaders = {
+        "Authorization": `Bearer ${token}`
+    };
+
     // ------------------- 内部函数: 获取或创建 Inbox -------------------
     async function getOrCreateInbox(token, apiHost) {
         try {
-            // 获取笔记列表
-            const resp = await fetch(`${apiHost}/CloudNotes/api/Notes/GetAll`, {
-                method: "GET",
-                headers: { "Authorization": `Bearer ${token}` }
-            });
+            // 获取笔记列表 —— 加 time=xxx
+            const q = window.aesEncrypt("parentid=0&isNoteNode=true&timestamp=" + Date.now());
+
+            const resp = await fetch(
+                `${apiHost}/CloudNotes/api/Notes/GetByParentId?${q}`,
+                {
+                    method: "GET",
+                    headers: noCacheHeaders
+                }
+            );
+
+
             const result = await resp.json();
             if (result.code !== 0 || !result.data) return null;
 
             const notesData = JSON.parse(window.aesDecrypt(result.data));
-            const inbox = notesData.noteList.find(n => n.fileUrl === "ColumnOS Push Service Inbox" && n.type === 0);
+            const inbox = notesData.noteList.find(
+                n => n.fileUrl === "ColumnOS Push Service Inbox v2" && n.type === 0
+            );
             if (inbox) return inbox.fileId;
 
             // 没找到则创建
             const newId = Array.from({ length: 32 }, () => "abcdef0123456789"[Math.floor(Math.random() * 16)]).join('');
             const payload = {
                 fileId: newId,
-                fileName: "ColumnOS Push Service Inbox",
-                fileUrl: "ColumnOS Push Service Inbox",
+                fileName: "ColumnOS Push Service Inbox v2",
+                fileUrl: "ColumnOS Push Service Inbox v2",
                 parentId: "0",
                 type: "0"
             };
             const encrypted = window.aesEncrypt(JSON.stringify(payload));
 
-            const createResp = await fetch(`${apiHost}/CloudNotes/api/Notes/AddOrUpdate`, {
-                method: "POST",
-                headers: {
-                    "Authorization": `Bearer ${token}`,
-                    "Content-Type": "application/json"
-                },
-                body: encrypted
-            }).then(r => r.json());
+            const createResp = await fetch(
+                `${apiHost}/CloudNotes/api/Notes/AddOrUpdate`,
+                {
+                    method: "POST",
+                    headers: {
+                        "Authorization": `Bearer ${token}`,
+                        "Content-Type": "application/json"
+                    },
+                    body: encrypted
+                }
+            ).then(r => r.json());
 
             if (createResp.code === 0) return newId;
             return null;
@@ -314,6 +337,7 @@ async function pushToInbox(text, id6, token, apiHost) {
     }
 
     const inboxId = await getOrCreateInbox(token, apiHost);
+    alert(inboxId);
     if (!inboxId) {
         console.error("无法获取或创建 Inbox");
         return false;
@@ -326,7 +350,10 @@ async function pushToInbox(text, id6, token, apiHost) {
         return false;
     }
 
-    const randomId = (len = 32) => Array.from({ length: len }, () => "abcdef0123456789"[Math.floor(Math.random() * 16)]).join('');
+    const randomId = (len = 32) =>
+        Array.from({ length: len }, () =>
+            "abcdef0123456789"[Math.floor(Math.random() * 16)]
+        ).join('');
 
     for (const block of items) {
         let part1 = block;
@@ -347,11 +374,18 @@ async function pushToInbox(text, id6, token, apiHost) {
 
         const encrypted = window.aesEncrypt(JSON.stringify(payload));
 
-        const resp = await fetch(`${apiHost}/CloudNotes/api/Notes/AddOrUpdate`, {
-            method: "POST",
-            headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
-            body: encrypted
-        }).then(r => r.json()).catch(e => ({ code: -1, error: e }));
+        const resp = await fetch(
+            `${apiHost}/CloudNotes/api/Notes/AddOrUpdate`,  // POST 也加 time
+            {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${token}`,
+                    "Content-Type": "application/json"
+
+                },
+                body: encrypted
+            }
+        ).then(r => r.json()).catch(e => ({ code: -1, error: e }));
 
         if (resp.code !== 0) console.error("子节点上传失败:", resp);
         else console.log("子节点上传成功:", payload.fileId);
@@ -359,6 +393,7 @@ async function pushToInbox(text, id6, token, apiHost) {
 
     return true;
 }
+
 function sleep(ms) {
     return new Promise(r => setTimeout(r, ms));
 }
@@ -366,6 +401,7 @@ function sleep(ms) {
 async function getPush() {
     while (true) {
         const start = Date.now();
+        
 
         const items = await readInbox();
         for (const item of items) {

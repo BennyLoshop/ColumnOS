@@ -1,0 +1,223 @@
+/* ---------- 全局 ---------- */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body, html {
+    height: 100%;
+    background-color: #121212;
+    color: #e0e0e0;
+}
+
+/* ---------- 布局 ---------- */
+#app {
+    display: flex;
+    height: 100vh;
+    overflow: hidden;
+}
+
+/* ---------- 左侧侧边栏 ---------- */
+.sidebar {
+    width: 260px;
+    background-color: #1f1f1f;
+    display: flex;
+    flex-direction: column;
+    padding: 15px;
+    border-right: 1px solid #333;
+}
+
+.sidebar h2 {
+    font-size: 20px;
+    margin-bottom: 10px;
+    color: #fff;
+}
+
+#contacts {
+    flex: 1;
+    overflow-y: auto;
+    list-style: none;
+    margin-bottom: 10px;
+}
+
+#contacts li {
+    padding: 10px;
+    border-radius: 6px;
+    margin-bottom: 6px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+#contacts li:hover,
+#contacts li.active {
+    background-color: #333;
+}
+
+/* ---------- 新建联系人 ---------- */
+.new-contact input {
+    width: 100%;
+    margin-bottom: 6px;
+    padding: 8px;
+    border: none;
+    border-radius: 6px;
+    background-color: #2a2a2a;
+    color: #e0e0e0;
+}
+
+.new-contact input::placeholder {
+    color: #aaa;
+}
+
+.new-contact button {
+    width: 100%;
+    padding: 8px;
+    border-radius: 6px;
+    border: none;
+    background-color: #1abc9c;
+    color: #fff;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.new-contact button:hover {
+    background-color: #16a085;
+}
+
+/* ---------- 右侧聊天窗口 ---------- */
+.chat {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background-color: #181818;
+    padding: 15px;
+}
+
+.chat h2 {
+    font-size: 20px;
+    margin-bottom: 10px;
+    color: #fff;
+}
+
+/* ---------- 消息区 ---------- */
+.messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px;
+    background-color: #202020;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.message {
+    max-width: 70%;
+    padding: 10px;
+    border-radius: 12px;
+    word-break: break-word;
+    line-height: 1.4;
+}
+
+.message.sent {
+    background-color: #1abc9c;
+    color: #fff;
+    align-self: flex-end;
+}
+
+.message.received {
+    background-color: #3498db;
+    color: #fff;
+    align-self: flex-start;
+}
+
+/* ---------- 发送框 ---------- */
+.send-box {
+    display: flex;
+    margin-top: 10px;
+    gap: 8px;
+}
+
+.send-box input {
+    flex: 1;
+    padding: 10px;
+    border-radius: 6px;
+    border: none;
+    background-color: #2a2a2a;
+    color: #fff;
+}
+
+.send-box input::placeholder {
+    color: #888;
+}
+
+.send-box button {
+    padding: 10px 15px;
+    border-radius: 6px;
+    border: none;
+    background-color: #1abc9c;
+    color: #fff;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.send-box button:hover {
+    background-color: #16a085;
+}
+
+/* ---------- 响应式移动端 ---------- */
+@media (max-width: 768px) {
+    #app {
+        flex-direction: column;
+    }
+    .sidebar {
+        width: 100%;
+        flex-direction: row;
+        overflow-x: auto;
+        border-right: none;
+        border-bottom: 1px solid #333;
+        padding: 10px 5px;
+    }
+    #contacts {
+        display: flex;
+        flex-direction: row;
+        gap: 6px;
+        margin-bottom: 0;
+    }
+    #contacts li {
+        min-width: 80px;
+        text-align: center;
+    }
+    .chat {
+        flex: 1;
+        padding: 10px;
+    }
+}
+.alias-badge {
+    font-size: 0.75em;
+    background-color: #444;
+    color: #eee;
+    padding: 0 4px;
+    border-radius: 4px;
+    margin-left: 4px;
+}
+/* 覆盖移动端 input 默认阴影和内置高亮 */
+input,
+textarea {
+    box-shadow: none !important;          /* 去掉阴影 */
+    -webkit-appearance: none !important;  /* iOS 去掉默认样式 */
+    -moz-appearance: none !important;     /* Firefox */
+    appearance: none !important;          /* 标准 */
+    outline: none !important;             /* 去掉外边框高亮 */
+    background-color: #2a2a2a;            /* 保持暗色背景 */
+    color: #e0e0e0;                       /* 字体颜色 */
+}
+
+/* focus 样式自定义 */
+input:focus,
+textarea:focus {
+    outline: none !important;
+    box-shadow: none !important;
+    border-color: #1abc9c;                /* 可选：聚焦边框颜色 */
+}
