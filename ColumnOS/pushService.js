@@ -337,7 +337,6 @@ async function pushToInbox(text, id6, token, apiHost) {
     }
 
     const inboxId = await getOrCreateInbox(token, apiHost);
-    alert(inboxId);
     if (!inboxId) {
         console.error("无法获取或创建 Inbox");
         return false;

@@ -5,6 +5,7 @@
     "src/html2canvas.min.js",
     "src/xiyueta.min.js",
     "src/crypto-js.min.js",
+    "src/aliyun-oss-sdk-6.16.0.min.js",
     "auth.js",
     "rewriter.js",
     "VAppHost.js",

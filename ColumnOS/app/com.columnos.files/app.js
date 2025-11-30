@@ -246,22 +246,25 @@
 
             if (items && items.length > 0) {
                 for (const itemStr of items) {
-                    if (cloudImportStop) break;  // 关闭时立即退出
+                    if (cloudImportStop) break;
+
                     try {
                         const item = JSON.parse(itemStr);
                         const fileName = item.fileName;
-                        const base64 = item.base64;
+                        const url = item.url;    // ⭐改为 URL，不是 base64
 
-                        // 显示保存进度动画
-                        cloudStatus.innerHTML = `<span class="cloud-loading"></span>正在导入：${fileName}`;
+                        cloudStatus.innerHTML =
+                            `<span class="cloud-loading"></span>正在下载：${fileName}`;
 
-                        const binaryStr = atob(base64);
-                        const len = binaryStr.length;
-                        const bytes = new Uint8Array(len);
-                        for (let i = 0; i < len; i++) bytes[i] = binaryStr.charCodeAt(i);
+                        // -------------------------
+                        // 1. 下载文件
+                        // -------------------------
+                        const resp = await fetch(url);
+                        const blob = await resp.blob();
 
-                        const blob = new Blob([bytes], { type: "application/octet-stream" });
-
+                        // -------------------------
+                        // 2. 写入 VFS
+                        // -------------------------
                         await vapp.globalVfs.setFile(
                             currentPath + (currentPath.endsWith("/") ? "" : "/") + fileName,
                             blob
@@ -270,8 +273,7 @@
                         cloudStatus.innerText = `文件 "${fileName}" 导入成功！`;
                         await refreshDir(currentPath);
 
-                        // 间隔 0.5 秒再导入下一条
-                        await new Promise(r => setTimeout(r, 500));
+                        await new Promise(r => setTimeout(r, 500)); // 最小 0.5 秒
                     } catch (err) {
                         cloudStatus.innerText = "导入失败：" + err.message;
                         console.error("云导入失败", err);
@@ -284,7 +286,7 @@
             await new Promise(r => setTimeout(r, 500));
         }
 
-        cloudImportTask = null; // 完成或关闭后清理
+        cloudImportTask = null;
     }
 
 

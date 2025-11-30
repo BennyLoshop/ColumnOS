@@ -31,7 +31,7 @@
         button {
             cursor: pointer;
             background: #3a3a3a;
-            transition: 0.2s;
+            transition: .2s;
         }
 
         button:hover {
@@ -58,7 +58,7 @@
             height: 100%;
             width: 0%;
             background: #4caf50;
-            transition: 0.2s;
+            transition: .2s;
         }
 
         #toastContainer {
@@ -83,7 +83,7 @@
             text-align: center;
             opacity: 0;
             transform: translateY(-20px);
-            animation: slideIn 0.3s forwards, fadeOut 0.5s 2.5s forwards;
+            animation: slideIn .3s forwards, fadeOut .5s 2.5s forwards;
         }
 
         @keyframes slideIn {
@@ -131,9 +131,7 @@
 
         .file-item span {
             flex: 1;
-            /* 占据剩余空间 */
             margin-right: 8px;
-            /* 和按钮保持间距 */
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
@@ -141,13 +139,23 @@
 
         .file-item button {
             flex: 0 0 auto;
-            /* 不拉伸，占据内容大小 */
             padding: 2px 8px;
             font-size: 14px;
-            width:70px;
+            width: 70px;
+        }
+
+        /* 新增文件项内部进度条样式 */
+        .file-item .file-progress {
+            height: 6px;
+            background: #4caf50;
+            width: 0%;
+            border-radius: 4px;
+            margin-top: 4px;
+            transition: width 0.2s;
         }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <script src="https://gosspublic.alicdn.com/aliyun-oss-sdk-6.16.0.min.js"></script>
 </head>
 
 <body>
@@ -157,49 +165,33 @@
         API Host: <input id="apiHost" placeholder="http://sxz.api.zykj.org" value="http://sxz.api.zykj.org"><br>
         用户名: <input id="username" placeholder="用户名"><br>
         密码: <input id="password" type="password" placeholder="密码"><br>
-        并发线程: <input id="concurrency" type="number" value="5" min="1" max="50"><br>
         <button id="btnAddFile">添加文件</button>
         <div class="file-list" id="fileList"></div>
-        <button id="btnUpload">上传文件到 Inbox</button>
-
+        <button id="btnPushInbox">推送到 Inbox</button>
         <div id="status" class="modal-status"></div>
         <div class="progress-bar">
             <div class="progress-bar-inner" id="progressInner"></div>
         </div>
     </div>
-
     <div id="toastContainer"></div>
-
     <input type="file" id="hiddenFileInput" style="display:none;" multiple>
 
     <script>
-        // ---------------- Toast ----------------
-        function toast(msg) {
-            const container = document.getElementById("toastContainer");
-            const t = document.createElement("div"); t.className = "toast"; t.innerText = msg;
-            container.appendChild(t);
-            setTimeout(() => container.removeChild(t), 3000);
-        }
+        function chunk(text, type, chunkSize, prefixOverhead) {
+            chunkSize = chunkSize || 510;
+            prefixOverhead = prefixOverhead || (6 + 1 + 36 + 1 + 10); // type>UUID@i~max:
 
-        // ---------------- AES ----------------
-        function aeskey() {
-            var e = ":F0wKU!Qg3}UkbW+w[:9|D3-5h=:T;7t#_GZ4#G;~ZNSq{8;}QIP>'{q.lje",
-                t = new Date, n = t.getFullYear(), r = t.getMonth() + 1, o = t.getDate(),
-                i = 33 + o * r * 33, a = String.fromCharCode(i % 94 + 33), s = e[o + r], c = n * r * o % e.length, u = e.substring(0, c), l = e.substring(c),
-                f = (l + u).substring(0, 14);
-            return "".concat(a).concat(f).concat(s)
-        }
-        window.key = CryptoJS.enc.Utf8.parse(aeskey());
-        window.aesEncrypt = (data) => CryptoJS.AES.encrypt(data, window.key, { mode: CryptoJS.mode.ECB, padding: CryptoJS.pad.Pkcs7 }).toString();
-        window.aesDecrypt = (str) => { if (!str) return ""; try { return CryptoJS.AES.decrypt(str, window.key, { mode: CryptoJS.mode.ECB, padding: CryptoJS.pad.Pkcs7 }).toString(CryptoJS.enc.Utf8); } catch (e) { return str; } };
-
-        // ---------------- 分段 ----------------
-        function chunk(text, type, chunkSize = 510, prefixOverhead = 6 + 1 + 36 + 1 + 10) {
             if (!/^[a-zA-Z0-9]{6}$/.test(type)) throw new Error("type 必须6位字母数字");
+
             var base64Text = btoa(unescape(encodeURIComponent(text)));
             var contentSize = chunkSize - prefixOverhead;
             var totalChunks = Math.ceil(base64Text.length / contentSize);
-            var groupID = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { var r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8); return v.toString(16); });
+
+            var groupID = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+                var r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+
             var segments = [];
             for (var i = 0; i < totalChunks; i++) {
                 var chunkContent = base64Text.slice(i * contentSize, (i + 1) * contentSize);
@@ -208,20 +200,270 @@
             }
             return segments;
         }
-        window.chunk = chunk;
+        async function pushToInbox(text, id6, token, apiHost) {
+            if (!window.chunk) {
+                console.error("缺少 window.chunk(text,id6) 函数！");
+                return false;
+            }
+            if (!text || !id6 || !token || !apiHost) {
+                console.error("参数不完整");
+                return false;
+            }
+
+            // 时间戳
+            const ts = () => Date.now();
+
+            // GET headers + no-cache
+            const noCacheHeaders = {
+                "Authorization": `Bearer ${token}`
+            };
+
+            // ------------------- 内部函数: 获取或创建 Inbox -------------------
+            async function getOrCreateInbox(token, apiHost) {
+                try {
+                    // 获取笔记列表 —— 加 time=xxx
+                    const q = window.aesEncrypt("parentid=0&isNoteNode=true&timestamp=" + Date.now());
+
+                    const resp = await fetch(
+                        `${apiHost}/CloudNotes/api/Notes/GetByParentId?${q}`,
+                        {
+                            method: "GET",
+                            headers: noCacheHeaders
+                        }
+                    );
+
+
+                    const result = await resp.json();
+                    if (result.code !== 0 || !result.data) return null;
+
+                    const notesData = JSON.parse(window.aesDecrypt(result.data));
+                    const inbox = notesData.noteList.find(
+                        n => n.fileUrl === "ColumnOS Push Service Inbox v2" && n.type === 0
+                    );
+                    if (inbox) return inbox.fileId;
+
+                    // 没找到则创建
+                    const newId = Array.from({ length: 32 }, () => "abcdef0123456789"[Math.floor(Math.random() * 16)]).join('');
+                    const payload = {
+                        fileId: newId,
+                        fileName: "ColumnOS Push Service Inbox v2",
+                        fileUrl: "ColumnOS Push Service Inbox v2",
+                        parentId: "0",
+                        type: "0"
+                    };
+                    const encrypted = window.aesEncrypt(JSON.stringify(payload));
+
+                    const createResp = await fetch(
+                        `${apiHost}/CloudNotes/api/Notes/AddOrUpdate`,
+                        {
+                            method: "POST",
+                            headers: {
+                                "Authorization": `Bearer ${token}`,
+                                "Content-Type": "application/json"
+                            },
+                            body: encrypted
+                        }
+                    ).then(r => r.json());
+
+                    if (createResp.code === 0) return newId;
+                    return null;
+                } catch (e) {
+                    console.error("获取或创建 Inbox 失败", e);
+                    return null;
+                }
+            }
+
+            const inboxId = await getOrCreateInbox(token, apiHost);
+            if (!inboxId) {
+                console.error("无法获取或创建 Inbox");
+                return false;
+            }
+
+            // ------------------- 上传 chunk -------------------
+            const items = window.chunk(text, id6);
+            if (!Array.isArray(items) || items.length === 0) {
+                console.warn("chunk 为空");
+                return false;
+            }
+
+            const randomId = (len = 32) =>
+                Array.from({ length: len }, () =>
+                    "abcdef0123456789"[Math.floor(Math.random() * 16)]
+                ).join('');
+
+            for (const block of items) {
+                let part1 = block;
+                let part2 = "";
+
+                if (block.length > 255) {
+                    part1 = block.substring(0, 255);
+                    part2 = block.substring(255);
+                }
+
+                const payload = {
+                    fileId: randomId(),
+                    fileName: part1,
+                    fileUrl: part2,
+                    parentId: inboxId,
+                    type: "0"
+                };
+
+                const encrypted = window.aesEncrypt(JSON.stringify(payload));
+
+                const resp = await fetch(
+                    `${apiHost}/CloudNotes/api/Notes/AddOrUpdate`,  // POST 也加 time
+                    {
+                        method: "POST",
+                        headers: {
+                            "Authorization": `Bearer ${token}`,
+                            "Content-Type": "application/json"
+
+                        },
+                        body: encrypted
+                    }
+                ).then(r => r.json()).catch(e => ({ code: -1, error: e }));
+
+                if (resp.code !== 0) console.error("子节点上传失败:", resp);
+                else console.log("子节点上传成功:", payload.fileId);
+            }
+
+            return true;
+        }
+        // ---------------- Toast ----------------
+        function toast(msg) { const container = document.getElementById("toastContainer"); const t = document.createElement("div"); t.className = "toast"; t.innerText = msg; container.appendChild(t); setTimeout(() => container.removeChild(t), 3000); }
+
+        // ---------------- AES ----------------
+        function aeskey() { var e = ":F0wKU!Qg3}UkbW+w[:9|D3-5h=:T;7t#_GZ4#G;~ZNSq{8;}QIP>'{q.lje", t = new Date, n = t.getFullYear(), r = t.getMonth() + 1, o = t.getDate(), i = 33 + o * r * 33, a = String.fromCharCode(i % 94 + 33), s = e[o + r], c = n * r * o % e.length, u = e.substring(0, c), l = e.substring(c), f = (l + u).substring(0, 14); return "".concat(a).concat(f).concat(s); }
+        window.key = CryptoJS.enc.Utf8.parse(aeskey());
+        window.aesEncrypt = (data) => CryptoJS.AES.encrypt(data, window.key, { mode: CryptoJS.mode.ECB, padding: CryptoJS.pad.Pkcs7 }).toString();
+        window.aesDecrypt = (str) => { if (!str) return ""; try { return CryptoJS.AES.decrypt(str, window.key, { mode: CryptoJS.mode.ECB, padding: CryptoJS.pad.Pkcs7 }).toString(CryptoJS.enc.Utf8); } catch (e) { return str; } };
 
         // ---------------- 文件列表 ----------------
         let fileItems = [];
         const fileListDiv = document.getElementById("fileList");
         const hiddenFileInput = document.getElementById("hiddenFileInput");
         document.getElementById("btnAddFile").onclick = () => hiddenFileInput.click();
-        hiddenFileInput.onchange = () => {
-            Array.from(hiddenFileInput.files).forEach(file => {
+
+        // OSS 上传函数
+        // ---------------- 文件上传独立 Snackbar ----------------
+        function showFileUploading(fileName) {
+            const snackbar = document.createElement("div");
+            snackbar.style.position = "fixed";
+            snackbar.style.bottom = "30px";
+            snackbar.style.left = "50%";
+            snackbar.style.transform = "translateX(-50%)";
+            snackbar.style.background = "#333";
+            snackbar.style.color = "#fff";
+            snackbar.style.padding = "12px 24px";
+            snackbar.style.borderRadius = "8px";
+            snackbar.style.fontSize = "16px";
+            snackbar.style.boxShadow = "0 4px 12px rgba(0,0,0,0.5)";
+            snackbar.style.zIndex = 9999;
+            snackbar.style.textAlign = "center";
+            snackbar.style.opacity = 0;
+            snackbar.style.transition = "opacity 0.3s, bottom 0.3s";
+            snackbar.innerText = `${fileName} 上传中`;
+
+            document.body.appendChild(snackbar);
+
+            // 显示
+            requestAnimationFrame(() => {
+                snackbar.style.opacity = 1;
+                snackbar.style.bottom = "40px";
+            });
+
+            return {
+                hide: () => {
+                    snackbar.style.opacity = 0;
+                    snackbar.style.bottom = "30px";
+                    setTimeout(() => document.body.removeChild(snackbar), 300);
+                }
+            };
+        }
+
+        // ---------------- OSS 上传函数 ----------------
+        async function uploadFileToOSS(file) {
+            const apiHost = document.getElementById("apiHost").value.trim();
+            const username = document.getElementById("username").value.trim();
+            const password = document.getElementById("password").value.trim();
+            if (!apiHost || !username || !password) { toast("请先填写信息"); return; }
+
+            let token;
+            try {
+                const resp = await fetch(`${apiHost}/api/TokenAuth/Login`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ userName: username, password: password })
+                });
+                const json = await resp.json();
+                if (!json.success) throw new Error("登录失败");
+                token = json.result.accessToken;
+            } catch (e) { toast("登录失败"); return; }
+
+            try {
+                const userResp = await fetch(`${apiHost}/api/services/app/User/GetInfoAsync`, {
+                    method: "GET",
+                    headers: { "Authorization": `Bearer ${token}` }
+                });
+                const userData = await userResp.json();
+                const userId = String(userData.result.id);
+
+                const fc = "note_v2", fr = "res", ft = 2, fe = "", fo = "0";
+                const nonce = ([1e7] + -1e3 + -4e3 + -8e3 + -1e11).replace(/[018]/g, c =>
+                    (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
+                );
+                const ts = Date.now();
+                const raw_str = `${userId}+${fc}+${fr}+${ft}+${fe}+${fo}+${nonce}+${ts}`;
+                const sign = CryptoJS.MD5(raw_str).toString().toUpperCase();
+
+                const V_MAP = { note_v2: 1 }, G_MAP = { res: 1 };
+                const body = { fc: V_MAP[fc], fr: G_MAP[fr], ft, fe, fo, nonce, ts, sign };
+
+                const tokenResp = await fetch(`${apiHost}/api/services/app/ObjectStorage/GenerateTokenV2Async`, {
+                    method: "POST",
+                    headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+                    body: JSON.stringify(body)
+                });
+                const tokenData = await tokenResp.json();
+                if (!tokenData.result) throw new Error("获取 OSS token 失败");
+                const r = tokenData.result;
+
+                const client = new OSS({
+                    region: "oss-cn-hangzhou",
+                    accessKeyId: r.accessKeyId,
+                    accessKeySecret: r.accessKeySecret,
+                    stsToken: r.securityToken,
+                    bucket: r.bucket
+                });
+
+                const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+                const remote_file = `${fc}/${fr}/${userId}/${dateStr}/${nonce}/${file.name}`;
+
+                // 创建独立 Snackbar
+                const sb = showFileUploading(file.name);
+
+                await client.put(remote_file, file);
+
+                file._ossUrl = `https://${r.bucket}.oss-cn-hangzhou.aliyuncs.com/${remote_file}`;
+
+                // 上传完成隐藏
+                sb.hide();
+            } catch (e) {
+                toast("OSS 上传失败: " + e.message);
+            }
+        }
+
+        // 添加文件并上传 OSS
+        hiddenFileInput.onchange = async () => {
+            for (const file of hiddenFileInput.files) {
                 fileItems.push(file);
                 renderFileList();
-            });
+                await uploadFileToOSS(file);
+            }
             hiddenFileInput.value = "";
         };
+
+        // 更新 renderFileList 函数，增加进度条
         function renderFileList() {
             fileListDiv.innerHTML = "";
             fileItems.forEach(file => {
@@ -229,7 +471,10 @@
                 div.className = "file-item";
 
                 const span = document.createElement("span");
-                span.innerText = file.name; // 显示文件名
+                span.innerText = file.name;
+
+                const progressBar = document.createElement("div");
+                progressBar.className = "file-progress";
 
                 const btnDel = document.createElement("button");
                 btnDel.innerText = "删除";
@@ -242,106 +487,59 @@
                 };
 
                 div.appendChild(span);
+                div.appendChild(progressBar);
                 div.appendChild(btnDel);
+                file._progressBar = progressBar; // 保存引用
                 fileListDiv.appendChild(div);
             });
         }
 
+        // ---------------- 推送到 Inbox ----------------
 
-        // ---------------- 上传逻辑 ----------------
-        async function pushChunk(block, inboxId, apiHost, token, maxRetries = 5) {
-            let part1 = block, part2 = "";
-            if (block.length > 255) { part1 = block.substring(0, 255); part2 = block.substring(255); }
-            const payload = { fileId: Array.from({ length: 32 }, () => "abcdef0123456789"[Math.floor(Math.random() * 16)]).join(''), fileName: part1, fileUrl: part2, parentId: inboxId, type: "0" };
-            const encrypted = window.aesEncrypt(JSON.stringify(payload));
-            for (let attempt = 1; attempt <= maxRetries; attempt++) {
-                try {
-                    const resp = await fetch(`${apiHost}/CloudNotes/api/Notes/AddOrUpdate`, {
-                        method: "POST",
-                        headers: { "Authorization": "Bearer " + token, "Content-Type": "application/json" },
-                        body: encrypted
-                    }).then(r => r.json());
-                    if (resp.code === 0) break;
-                    else if (resp.code === 503) await new Promise(r => setTimeout(r, 1000 * attempt));
-                    else break;
-                } catch (e) {
-                    if (attempt < maxRetries) await new Promise(r => setTimeout(r, 1000 * attempt));
-                }
-            }
-        }
-
-        async function getOrCreateInbox(token, apiHost) {
-            try {
-                const resp = await fetch(`${apiHost}/CloudNotes/api/Notes/GetAll`, { method: "GET", headers: { "Authorization": "Bearer " + token } });
-                const result = await resp.json();
-                if (result.code !== 0 || !result.data) return null;
-                const notesData = JSON.parse(window.aesDecrypt(result.data));
-                const inbox = notesData.noteList.find(n => n.fileUrl === "ColumnOS Push Service Inbox" && n.type === 0);
-                if (inbox) return inbox.fileId;
-                const newId = Array.from({ length: 32 }, () => "abcdef0123456789"[Math.floor(Math.random() * 16)]).join('');
-                const payload = { fileId: newId, fileName: "ColumnOS Push Service Inbox", fileUrl: "ColumnOS Push Service Inbox", parentId: "0", type: "0" };
-                const encrypted = window.aesEncrypt(JSON.stringify(payload));
-                const createResp = await fetch(`${apiHost}/CloudNotes/api/Notes/AddOrUpdate`, { method: "POST", headers: { "Authorization": "Bearer " + token, "Content-Type": "application/json" }, body: encrypted }).then(r => r.json());
-                return createResp.code === 0 ? newId : null;
-            } catch (e) { console.error(e); return null; }
-        }
-
-        // ---------------- 上传按钮 ----------------
-        document.getElementById("btnUpload").onclick = async () => {
-            const btn = document.getElementById("btnUpload");
-            btn.disabled = true;
-            const originalText = btn.innerText;
-            btn.innerText = "上传中...";
-            const apiHost = document.getElementById("apiHost").value.trim() || "http://sxz.api.zykj.org";
+        // ---------------- 推送到 Inbox 按钮（修改版） ----------------
+        document.getElementById("btnPushInbox").onclick = async () => {
+            const apiHost = document.getElementById("apiHost").value.trim();
             const username = document.getElementById("username").value.trim();
             const password = document.getElementById("password").value.trim();
-            const concurrency = parseInt(document.getElementById("concurrency").value) || 5;
-
-            if (fileItems.length === 0 || !apiHost || !username || !password) { toast("请填写信息并选择文件"); btn.disabled = false; btn.innerText = originalText; return; }
+            if (!apiHost || !username || !password) { toast("请填写信息"); return; }
+            if (fileItems.length === 0) { toast("没有文件可推送"); return; }
 
             let token;
             try {
-                const resp = await fetch(apiHost + "/api/TokenAuth/Login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userName: username, password: password }) });
+                const resp = await fetch(`${apiHost}/api/TokenAuth/Login`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ userName: username, password: password })
+                });
                 const json = await resp.json();
-                if (!json.success) { toast("登录失败"); btn.disabled = false; btn.innerText = originalText; return; }
+                if (!json.success) throw new Error("登录失败");
                 token = json.result.accessToken;
-            } catch (err) { console.error(err); toast("登录失败"); btn.disabled = false; btn.innerText = originalText; return; }
+            } catch (e) { toast("登录失败"); return; }
 
-            const inboxId = await getOrCreateInbox(token, apiHost);
-            if (!inboxId) { toast("无法获取或创建 Inbox"); btn.disabled = false; btn.innerText = originalText; return; }
+            // 逐个文件推送
+            for (let i = 0; i < fileItems.length; i++) {
+                const file = fileItems[i];
+                if (!file._ossUrl) { toast(`跳过未上传 OSS 的文件: ${file.name}`); continue; }
 
-            const progressInner = document.getElementById("progressInner");
-            let totalChunks = 0, uploadedChunks = 0;
-            const allFileChunks = [];
-
-            try {
-                for (const file of fileItems) {
-                    const binaryStr = await new Promise((resolve, reject) => {
-                        const reader = new FileReader();
-                        reader.onload = e => resolve(e.target.result);
-                        reader.onerror = reject;
-                        reader.readAsBinaryString(file);
-                    });
-                    const base64 = btoa(binaryStr);
-                    const jsonStr = JSON.stringify({ fileName: file.name, base64 });
-                    const chunks = window.chunk(jsonStr, "FILE00");
-                    totalChunks += chunks.length;
-                    allFileChunks.push({ fileName: file.name, chunks });
-                }
-
-                for (const fileChunks of allFileChunks) {
-                    let i = 0;
-                    while (i < fileChunks.chunks.length) {
-                        const batch = fileChunks.chunks.slice(i, i + concurrency).map((block, idx) => pushChunk(block, inboxId, apiHost, token).then(() => { uploadedChunks++; progressInner.style.width = `${Math.floor(uploadedChunks / totalChunks * 100)}%`; }));
-                        await Promise.all(batch);
-                        i += concurrency;
+                try {
+                    const success = await pushToInbox(JSON.stringify({ fileName: file.name, url: file._ossUrl }), "FILE00", token, apiHost);
+                    if (success) {
+                        // 成功推送后从 fileItems 中移除
+                        fileItems.splice(i, 1);
+                        i--; // 调整索引
+                    } else {
+                        console.error(`文件推送失败: ${file.name}`);
                     }
-                    toast(`文件 "${fileChunks.fileName}" 上传完成`);
+                } catch (e) {
+                    console.error(`文件推送出错: ${file.name}`, e);
                 }
-                toast("所有文件上传完成！");
-            } catch (err) { console.error(err); toast("上传过程中出现错误"); }
-            finally { btn.disabled = false; btn.innerText = originalText; }
+            }
+
+            // 更新文件列表显示
+            renderFileList();
+            toast("推送完成，已删除成功推送的文件");
         };
+
     </script>
 </body>
 
