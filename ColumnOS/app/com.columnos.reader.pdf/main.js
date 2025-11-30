@@ -24,6 +24,17 @@ let pdfFileArrayBuffer = null;
 let pageCache = {};
 let currentPdfMD5 = null; // 当前 PDF MD5
 
+const loadingOverlay = document.getElementById('loadingOverlay');
+
+function showLoading() {
+  loadingOverlay.style.display = 'flex';
+}
+
+function hideLoading() {
+  loadingOverlay.style.display = 'none';
+}
+
+
 // ---------- 等待 vapp 就绪 ----------
 window.addEventListener('DOMContentLoaded', () => {
   const waitForVappOk = async () => {
@@ -36,30 +47,31 @@ window.addEventListener('DOMContentLoaded', () => {
 
         if (filePath) {
           try {
+            showLoading(); // 显示加载中
             const blob = await window.vapp.globalVfs.getFile(filePath);
             if (!blob) throw new Error("VFS 文件不存在: " + filePath);
 
             pdfFileArrayBuffer = await blob.arrayBuffer();
             pdfNameSpan.textContent = filePath.split('/').pop();
 
-            // 计算 MD5
             currentPdfMD5 = calculateMD5(pdfFileArrayBuffer);
 
-            // 加载 PDF
             pdfDoc = await pdfjsLib.getDocument({ data: pdfFileArrayBuffer, worker: null }).promise;
             totalPages = pdfDoc.numPages;
             pageCache = {};
 
-            // 恢复进度
             currentPage = await getProgress(currentPdfMD5);
-            queueRender(currentPage);
+            await queueRender(currentPage);
 
           } catch (e) {
             console.error("自动打开文件失败:", e);
             showToast("无法打开指定文件");
             openFileBtn.disabled = false;
+          } finally {
+            hideLoading(); // 隐藏加载中
           }
         }
+
       } else {
         requestAnimationFrame(waitForVappOk);
       }
@@ -219,22 +231,30 @@ window.addEventListener('click', e => { if (e.target === fileModal) fileModal.st
 fileInput.addEventListener('change', async (e) => {
   const file = e.target.files[0];
   if (!file) return;
+
+  showLoading();
   fileModal.style.display = 'none';
-  pdfFileArrayBuffer = await file.arrayBuffer();
-  pdfNameSpan.textContent = file.name;
+  try {
+    pdfFileArrayBuffer = await file.arrayBuffer();
+    pdfNameSpan.textContent = file.name;
 
-  // 计算 MD5
-  currentPdfMD5 = calculateMD5(pdfFileArrayBuffer);
+    currentPdfMD5 = calculateMD5(pdfFileArrayBuffer);
 
-  // 加载 PDF
-  pdfDoc = await pdfjsLib.getDocument({ data: pdfFileArrayBuffer, worker: null }).promise;
-  totalPages = pdfDoc.numPages;
-  pageCache = {};
+    pdfDoc = await pdfjsLib.getDocument({ data: pdfFileArrayBuffer, worker: null }).promise;
+    totalPages = pdfDoc.numPages;
+    pageCache = {};
 
-  // 恢复进度
-  currentPage = await getProgress(currentPdfMD5);
-  queueRender(currentPage);
+    currentPage = await getProgress(currentPdfMD5);
+    await queueRender(currentPage);
+
+  } catch (err) {
+    console.error(err);
+    showToast("加载 PDF 出错");
+  } finally {
+    hideLoading();
+  }
 });
+
 
 // ---------- 左右滑动翻页 ----------
 let touchStartX = 0;
