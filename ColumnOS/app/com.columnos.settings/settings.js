@@ -31,6 +31,8 @@ async function initSettingsPage() {
             showSecuritySettings();
         } else if (cat === 'personalize') {
             showPersonalize();
+        } else if (cat === 'push') {
+            showPushSettings();  // 新增
         } else if (cat === 'about') {
             showAbout();
         }
@@ -46,10 +48,16 @@ async function initSettingsPage() {
         label.textContent = "设置密码:";
         content.appendChild(label);
 
+        const br = document.createElement('br');
+        content.appendChild(br);
+
         const input = document.createElement('input');
         input.type = "password";
         input.placeholder = "请输入新密码";
         content.appendChild(input);
+
+        const br2 = document.createElement('br');
+        content.appendChild(br2);
 
         const btn = document.createElement('button');
         btn.textContent = "保存密码";
@@ -183,6 +191,74 @@ async function initSettingsPage() {
         });
 
     }
+
+
+    // ---------------- 推送设置 ----------------
+    async function showPushSettings() {
+        const title = document.createElement('h2');
+        title.textContent = "推送设置";
+        content.appendChild(title);
+
+        const card = document.createElement('div');
+        card.className = "setting-card";
+        content.appendChild(card);
+
+        const row = document.createElement('div');
+        row.className = "setting-row";
+        card.appendChild(row);
+
+        const label = document.createElement('span');
+        label.className = "setting-label";
+        label.textContent = "启用推送";
+        row.appendChild(label);
+
+        const toggle = document.createElement('label');
+        toggle.className = "switch";
+        row.appendChild(toggle);
+
+        const checkbox = document.createElement('input');
+        checkbox.type = "checkbox";
+        toggle.appendChild(checkbox);
+
+        const slider = document.createElement('span');
+        slider.className = "slider";
+        toggle.appendChild(slider);
+
+        // 读取当前设置
+        let pushSettings = { push: true };
+        try {
+            const blob = await vapp.globalVfs.getFile("/systemdata/settings/pushsettings.json");
+            if (blob) {
+                const text = await blob.text();
+                const obj = JSON.parse(text);
+                pushSettings.push = obj.push ?? true;
+            }
+        } catch (e) {
+            console.warn("读取 pushsettings.json 失败:", e);
+        }
+        checkbox.checked = pushSettings.push;
+
+        // 保存逻辑
+        checkbox.addEventListener('change', async () => {
+            pushSettings.push = checkbox.checked;
+            try {
+                const blob = new Blob([JSON.stringify(pushSettings)], { type: "application/json" });
+                await vapp.globalVfs.createDirIfNotExist("/systemdata/settings");
+                await vapp.globalVfs.setFile("/systemdata/settings/pushsettings.json", blob);
+                console.log("已保存 push 设置:", pushSettings.push);
+            } catch (err) {
+                console.error("保存 pushsettings.json 失败:", err);
+            }
+        });
+
+        // 整行点击切换，排除点击 switch 内部
+        row.addEventListener('click', e => {
+            if (e.target === checkbox || e.target === slider) return; // 不干扰 switch
+            checkbox.checked = !checkbox.checked;
+            checkbox.dispatchEvent(new Event('change'));
+        });
+    }
+
 
 
 
