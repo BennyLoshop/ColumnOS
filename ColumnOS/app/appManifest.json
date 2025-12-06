@@ -43,5 +43,10 @@
     "appName": "信息",
     "appId": "com.columnos.chat",
     "appIcon": "/system/app/com.columnos.chat/icon.png"
+  },
+  {
+    "appName": "音乐",
+    "appId": "com.columnos.reader.music",
+    "appIcon": "/system/app/com.columnos.reader.music/icon.png"
   }
 ]

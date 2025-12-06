@@ -90,6 +90,9 @@
                     } else if (["app"].includes(ext)) {
                         // 打开应用安装器
                         window.parent.createVApp("com.columnos.appinstaller", { file: filePath });
+                    } else if (["mp3"].includes(ext)) {
+                        // 打开应用安装器
+                        window.parent.createVApp("com.columnos.reader.music", { file: filePath });
                     } else {
                         // 其他文件类型可选择提示或忽略
                         console.warn("不支持的文件类型:", ext);

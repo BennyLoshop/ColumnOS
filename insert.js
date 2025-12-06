@@ -223,6 +223,33 @@
             });
         }
 
+        /**
+     * 根据文件扩展名搜索文件
+     * @param {string} ext 扩展名，例如 ".txt" 或 "js"（自动忽略开头点）
+     * @returns {Promise<string[]>} 匹配文件的完整路径数组
+     */
+        async searchFileByExt(ext) {
+            if (!ext.startsWith(".")) ext = "." + ext; // 确保带点
+            const db = await this.dbp;
+            const store = db.transaction("files", "readonly").objectStore("files");
+            const results = [];
+
+            return new Promise((resolve, reject) => {
+                const request = store.openCursor();
+                request.onsuccess = e => {
+                    const cursor = e.target.result;
+                    if (!cursor) return resolve(results);
+                    const key = cursor.key;
+                    const value = cursor.value;
+                    if (!value.dir && key.toLowerCase().endsWith(ext.toLowerCase())) {
+                        results.push(key);
+                    }
+                    cursor.continue();
+                };
+                request.onerror = err => reject(err);
+            });
+        }
+
         async uploadFileFromPrompt() {
             return new Promise(resolve => {
                 const inp = document.createElement("input");

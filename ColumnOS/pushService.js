@@ -373,21 +373,48 @@ async function pushToInbox(text, id6, token, apiHost) {
 
         const encrypted = window.aesEncrypt(JSON.stringify(payload));
 
-        const resp = await fetch(
-            `${apiHost}/CloudNotes/api/Notes/AddOrUpdate`,  // POST 也加 time
-            {
-                method: "POST",
-                headers: {
-                    "Authorization": `Bearer ${token}`,
-                    "Content-Type": "application/json"
+        async function uploadWithRetry(apiHost, token, encrypted, payload, maxRetries = 10) {
+            let attempt = 0;
+            let resp;
 
-                },
-                body: encrypted
+            while (attempt < maxRetries) {
+                try {
+                    resp = await fetch(
+                        `${apiHost}/CloudNotes/api/Notes/AddOrUpdate`,
+                        {
+                            method: "POST",
+                            headers: {
+                                "Authorization": `Bearer ${token}`,
+                                "Content-Type": "application/json"
+                            },
+                            body: encrypted
+                        }
+                    ).then(r => r.json());
+
+                    if (resp.code === 0) {
+                        console.log("子节点上传成功:", payload.fileId);
+                        return resp;
+                    } else {
+                        console.error(`子节点上传失败（第 ${attempt + 1} 次）:`, resp);
+                    }
+                } catch (e) {
+                    console.error(`请求异常（第 ${attempt + 1} 次）:`, e);
+                }
+
+                attempt++;
+                if (attempt < maxRetries) {
+                    // 等待 200ms 再重试
+                    await new Promise(res => setTimeout(res, 200));
+                }
             }
-        ).then(r => r.json()).catch(e => ({ code: -1, error: e }));
 
-        if (resp.code !== 0) console.error("子节点上传失败:", resp);
-        else console.log("子节点上传成功:", payload.fileId);
+            console.error(`子节点上传失败，已重试 ${maxRetries} 次`, resp);
+            return resp;
+        }
+
+        // 调用方法
+        await uploadWithRetry(apiHost, token, encrypted, payload);
+
     }
 
     return true;
@@ -400,7 +427,7 @@ function sleep(ms) {
 async function getPush() {
     while (true) {
         const start = Date.now();
-        
+
 
         const items = await readInbox();
         for (const item of items) {

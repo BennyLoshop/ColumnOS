@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>音乐播放器 - APlayer</title>
+    <link rel="stylesheet" vfs:href="/APlayer.min.css">
+    <link rel="stylesheet" vfs:href="/styles.css">
+</head>
+
+<body>
+    <div id="navBar">
+        <div class="title">音乐播放器</div>
+        <div class="controls">
+            <button id="loadBtn">选择本地音乐</button>
+            <button id="modeBtn">模式: 列表循环</button>
+        </div>
+    </div>
+
+    <div id="playerWrapper">
+        <div id="playerContainer"></div>
+        <div id="musicInfo">当前播放: <span id="musicName">未加载音乐</span></div>
+        <ul id="playlist"></ul>
+    </div>
+
+    <input type="file" id="musicFileInput" style="display:none" accept=".mp3">
+
+    <!-- APlayer -->
+    <script vfs:src="/APlayer.min.js"></script>
+    <script vfs:src="/music.js"></script>
+</body>
+
+</html>

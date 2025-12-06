@@ -277,6 +277,22 @@ window.getToken = async function () {
     // 两个都过期 → 重新登录
     return await window.reLogin();
 };
+//
+// 获取当前登录的 apiHost
+//
+window.getApiHost = function () {
+    if (!window.loginInf) return null;
+    return window.loginInf.apiHost || null;
+};
+
+//
+// 获取当前登录的用户名
+//
+window.getUsername = function () {
+    if (!window.loginInf) return null;
+    return window.loginInf.userName || null;
+};
+
 // tokenStore.js --- 适用于 ColumnOS 的通用 CommonJS 风格（无 module.exports）
 
 (function (global) {

@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>深度测试 - 系统解锁</title>
+  <link rel="stylesheet" vfs:href="/styles.css">
+</head>
+<body>
+  <main class="container">
+    <header class="header">
+      <h1>深度测试</h1>
+      <p class="muted">管理时间安全锁</p>
+    </header>
+
+    <section class="card" id="statusCard">
+      <div class="row">
+        <div>
+          <h2 id="stateTitle">检查中…</h2>
+          <p id="stateDetail" class="muted">正在读取文件，请稍候</p>
+        </div>
+        <div id="statusIcon" class="status-dot"></div>
+      </div>
+
+      <div class="controls">
+        <button id="unlockBtn" class="btn" disabled>解锁</button>
+        <button id="lockBtn" class="btn ghost" disabled>上锁</button>
+        <button id="refreshBtn" class="btn tiny">刷新</button>
+      </div>
+
+      <p id="notice" class="notice">——</p>
+    </section>
+
+    <footer class="footer muted">注意：仅供测试使用。</footer>
+  </main>
+
+  <script type="module" vfs:src="/app.js"></script>
+</body>
+</html>

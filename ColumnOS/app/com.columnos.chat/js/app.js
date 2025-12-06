@@ -7,6 +7,22 @@
                 if (window.vapp) {
                     clearInterval(timer);
                     resolve(window.vapp);
+
+                    async function initUserAlias() {
+                        if (!window.vapp) return null;
+
+                        const username = window.vapp.getUsername?.();
+                        const apiHost = window.vapp.getApiHost?.();
+
+                        if (!username || !apiHost) return null;
+
+                        const hostFirstPart = apiHost.split("/")[2]?.split(".")[0] || apiHost;
+                        window.userAlias = `${username}@${hostFirstPart}`;
+                        console.log("当前用户 alias:", window.userAlias);
+                        return window.userAlias;
+                    }
+
+                    initUserAlias();
                 }
             }, 100);
         });
@@ -107,14 +123,95 @@
     let currentChatLog = null;
     let polling = false;
 
+    // -------------------- 渲染消息 --------------------
     function appendMessageToUI(text, type) {
         const div = document.createElement("div");
         div.className = `message ${type}`;
         div.textContent = text;
         messagesEl.appendChild(div);
-        messagesEl.scrollTop = messagesEl.scrollHeight + 1000;
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+        return div;
     }
 
+    // -------------------- 懒加载消息 --------------------
+    const PAGE_SIZE = 20;
+    let renderedIndex = null;
+
+    async function renderMessagesLazy() {
+        if (!currentChatLog) return;
+        await currentChatLog.load();
+        const messages = currentChatLog.messages;
+
+        if (renderedIndex === null) {
+            // 初次渲染最新消息
+            renderedIndex = messages.length;
+            const start = Math.max(0, renderedIndex - PAGE_SIZE);
+            const batch = messages.slice(start, renderedIndex);
+
+            batch.forEach(msg => {
+                const div = document.createElement("div");
+                div.className = `message ${msg.type}`;
+                div.textContent = msg.msg;
+                messagesEl.appendChild(div);
+            });
+            renderedIndex = start;
+
+            // 延迟 100ms 再滚动到底部
+            setTimeout(() => {
+                messagesEl.scrollTop = messagesEl.scrollHeight;
+            }, 200);
+
+            return;
+        }
+        if (renderedIndex === null) {
+            // 初次渲染：最新 PAGE_SIZE 条消息
+            renderedIndex = messages.length;
+            const start = Math.max(0, renderedIndex - PAGE_SIZE);
+            const batch = messages.slice(start, renderedIndex);
+
+            batch.forEach(msg => {
+                const div = document.createElement("div");
+                div.className = `message ${msg.type}`;
+                div.textContent = msg.msg;
+                messagesEl.appendChild(div);
+            });
+
+            renderedIndex = start;
+
+            // ⚡ 确保渲染完成后滚动到底部
+            requestAnimationFrame(() => {
+                messagesEl.scrollTop = messagesEl.scrollHeight;
+            });
+
+            return;
+        }
+
+        // 滚动顶部加载历史消息
+        const start = Math.max(0, renderedIndex - PAGE_SIZE);
+        const batch = messages.slice(start, renderedIndex);
+
+        const prevScrollHeight = messagesEl.scrollHeight;
+
+        batch.reverse().forEach(msg => {
+            const div = document.createElement("div");
+            div.className = `message ${msg.type}`;
+            div.textContent = msg.msg;
+            messagesEl.prepend(div);
+        });
+
+        // 保持滚动位置
+        messagesEl.scrollTop = messagesEl.scrollHeight - prevScrollHeight;
+        renderedIndex = start;
+    }
+
+
+    messagesEl.addEventListener("scroll", async () => {
+        if (messagesEl.scrollTop === 0) {
+            await renderMessagesLazy();
+        }
+    });
+
+    // -------------------- 联系人 --------------------
     async function refreshContacts() {
         const aliases = await chatSessions.list();
         contactsEl.innerHTML = "";
@@ -129,32 +226,25 @@
         });
     }
 
-
     async function selectContact(alias) {
         currentAlias = alias;
-
-        // 处理 alias，分离用户名和 host
         const [username, hostPart] = alias.split("@");
-
-        // 更新聊天标题，host 放在 badge
         chatTitle.innerHTML = `聊天: ${username} <span class="alias-badge">@${hostPart}</span>`;
 
         messagesEl.innerHTML = "";
         currentChatLog = new ChatLog(vfs, alias);
         await currentChatLog.load();
 
-        const msgs = await currentChatLog.getAll();
-        msgs.forEach(m => appendMessageToUI(m.msg, m.type));
-
+        renderedIndex = null;
+        await renderMessagesLazy();
 
         await refreshContacts();
 
         if (!polling) {
             polling = true;
-            pollMessages(); // 开始轮询
+            pollMessages();
         }
     }
-
 
     // -------------------- 添加联系人 --------------------
     async function addContactHandler() {
@@ -163,7 +253,6 @@
         const apiHost = document.getElementById("new-apihost").value.trim();
         if (!username || !password || !apiHost) return alert("请填写完整信息");
 
-        // 生成 alias，不带 http://
         const hostFirstPart = apiHost.split("/")[2]?.split(".")[0] || apiHost;
         const alias = `${username}@${hostFirstPart}`;
 
@@ -181,51 +270,99 @@
         if (!text || !currentAlias) return;
         inputMessage.value = "";
 
-        const token = await window.vapp.tokenStore.getTokenByAlias(currentAlias);
-        console.log(currentAlias);
-        const apiHost = await window.vapp.tokenStore.getApiHostByAlias(currentAlias);
-        if (!token || !apiHost) return alert("获取 token 失败");
+        const targetAlias = currentAlias;
+        const targetChatLog = currentChatLog;
+
+        const pendingDiv = appendMessageToUI(text, "pending");
+
+        const token = await window.vapp.tokenStore.getTokenByAlias(targetAlias);
+        const apiHost = await window.vapp.tokenStore.getApiHostByAlias(targetAlias);
+        if (!token || !apiHost) {
+            pendingDiv.textContent = text + " (发送失败)";
+            pendingDiv.classList.remove("pending");
+            pendingDiv.classList.add("received");
+            return;
+        }
 
         const msgObj = {
-            from: currentAlias,
+            from: window.userAlias,
             session: "single",
             msg: text
         };
 
         const id6 = "MSG001";
-        await vapp.pushToInbox(JSON.stringify(msgObj), id6, token, apiHost);
 
-        await currentChatLog.append({ id: id6 + "-" + Date.now(), type: "sent", ...msgObj });
-        appendMessageToUI(text, "sent");
+        try {
+            await vapp.pushToInbox(JSON.stringify(msgObj), id6, token, apiHost);
+
+            await targetChatLog.append({
+                id: id6 + "-" + Date.now(),
+                type: "sent",
+                ...msgObj
+            });
+
+            if (currentAlias === targetAlias) {
+                pendingDiv.classList.remove("pending");
+                pendingDiv.classList.add("sent");
+            } else {
+                pendingDiv.remove();
+            }
+
+        } catch (e) {
+            if (currentAlias === targetAlias) {
+                pendingDiv.textContent = text + " (发送失败)";
+                pendingDiv.classList.remove("pending");
+                pendingDiv.classList.add("received");
+            } else {
+                pendingDiv.remove();
+            }
+        }
     }
+
     document.getElementById("send-message").onclick = sendMessage;
 
     // -------------------- 消息轮询 --------------------
     async function pollMessages() {
         while (true) {
-            if (currentAlias && currentChatLog) {
-                try {
-                    const id6 = "MSG001";
-                    const items = await window.vapp.chunkStore.search(id6);
-                    console.log("轮询到消息:", items);
-                    if (items && items.length) {
-                        for (const str of items) {
-                            try {
-                                const msgObj = JSON.parse(str);
-                                console.log("解析到消息对象:", msgObj);
-                                if (msgObj.session === "single" && msgObj.from !== currentAlias) {
-                                    await currentChatLog.append({ id: Date.now() + "-" + Math.random(), type: "received", ...msgObj });
-                                    appendMessageToUI(msgObj.msg, "received");
-                                }
-                            } catch (e) {
-                                console.warn("解析消息失败:", str);
+            try {
+                const id6 = "MSG001";
+                const items = await window.vapp.chunkStore.search(id6);
+
+                if (items && items.length) {
+                    for (const str of items) {
+                        try {
+                            const msgObj = JSON.parse(str);
+
+                            if (!msgObj.from) continue;
+
+                            const allAliases = await chatSessions.list();
+                            if (!allAliases.includes(msgObj.from)) continue;
+
+                            const log = new ChatLog(vfs, msgObj.from);
+                            await log.load();
+
+                            const saved = {
+                                id: Date.now() + "-" + Math.random(),
+                                type: "received",
+                                ...msgObj
+                            };
+
+                            await log.append(saved);
+
+                            if (currentAlias === msgObj.from) {
+                                appendMessageToUI(msgObj.msg, "received");
                             }
+
+                        } catch (e) {
+                            console.warn("解析消息失败:", str);
                         }
                     }
-                } catch (e) {
-                    console.error("轮询出错:", e);
                 }
+
+            } catch (e) {
+                console.error("轮询出错:", e);
             }
+
             await new Promise(r => setTimeout(r, 500));
         }
     }

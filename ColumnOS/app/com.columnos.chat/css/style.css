@@ -221,3 +221,9 @@ textarea:focus {
     box-shadow: none !important;
     border-color: #1abc9c;                /* 可选：聚焦边框颜色 */
 }
+.message.pending {
+    background-color: #555;   /* 深灰色气泡 */
+    color: #ddd;
+    align-self: flex-end;
+    opacity: 0.7;
+}
