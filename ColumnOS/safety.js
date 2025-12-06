@@ -140,17 +140,36 @@ async function getPassword() {
 
 function checkTime() {
     const now = new Date();
-    const day = now.getDay(); // 0 = Sunday, 1 = Monday, ... 6 = Saturday
-    const hour = now.getHours(); // 0 - 23
+    const day = now.getDay(); // 0=Sunday
+    const hour = now.getHours();
+    const minute = now.getMinutes();
 
-    // 周一到周五 && 时间在 6 - 21（21 不包括）
-    if (day >= 1 && day <= 5 && hour >= 6 && hour < 21) {
-        alert("error 1101");
-        return false;
+    // 非测试用户 禁止时间段：
+    // 周一到周五：
+    // 1) 06:00 ~ 12:40
+    // 2) 13:10 ~ 21:20
+
+    if (day >= 1 && day <= 5) {
+
+        const t = hour * 60 + minute; // 转成分钟
+
+        const t1_start = 6 * 60;        // 06:00
+        const t1_end = 12 * 60 + 40;  // 12:40
+
+        const t2_start = 13 * 60 + 10;  // 13:10
+        const t2_end = 21 * 60 + 20;  // 21:20
+
+        if ((t >= t1_start && t < t1_end) ||
+            (t >= t2_start && t < t2_end)) {
+
+            alert("非测试用户周一到周五 6:00~12:40、13:10~21:20 不可用");
+            return false;
+        }
     }
 
     return true;
 }
+
 function getDP() {
     try {
         // 1. 从 URL 获取 apiToken

@@ -71,8 +71,8 @@
                 chunkStore: window.chunkStore,
                 pushToInbox: window.pushToInbox,
                 tokenStore: window.tokenStore,
-                getApiHost:window.getApiHost,
-                getUsername:window.getUsername,
+                getApiHost: window.getApiHost,
+                getUsername: window.getUsername,
                 // ============ 增加 getAppFile ============
                 // 传入相对于 vfsRoot 的路径，如 "/img/icon.png"
                 // 返回对应的 Blob
@@ -336,22 +336,32 @@
             // ===================== 注入 exit =====================
             win.vapp.exit = () => {
                 try {
-                    // 找到当前 iframe 的父容器（AppDiv 或 iframe 父节点）
+                    // ============= ① 清空 this.blobPool 所有 URL =============
+                    if (this.blobPool) {
+                        for (const key in this.blobPool) {
+                            try { URL.revokeObjectURL(this.blobPool[key]); } catch (e) { }
+                        }
+                        this.blobPool = {};
+                    }
+
+                    // ============= ② 清空 iframe.srcdoc，释放内容 =============
                     const iframeEl = win.frameElement;
-                    if (!iframeEl) return;
+                    if (iframeEl) iframeEl.srcdoc = "";
 
-                    const parentDiv = iframeEl.parentNode;
-                    if (!parentDiv) return;
+                    // ============= ③ 移除 iframe =============
+                    if (iframeEl) {
+                        const parentDiv = iframeEl.parentNode;
+                        if (parentDiv) parentDiv.remove();
+                    }
 
-                    // 移除 iframe
-                    parentDiv.remove();
-
-                    // 如果有全局函数 switchAppDiv 可以回到主页
+                    // 切回主界面（如果有）
                     if (typeof window.switchAppDiv === 'function') window.switchAppDiv('0');
+
                 } catch (err) {
                     console.error('vapp.exit error:', err);
                 }
             };
+
 
 
         }
@@ -414,6 +424,10 @@
 
             this.iframe.srcdoc = html;
             await new Promise(r => (this.iframe.onload = r));
+
+            for (const key in blobMap) {
+                URL.revokeObjectURL(blobMap[key]);
+            }
 
             // 注入 vapp API
             this._injectVAppApi(this.iframe.contentWindow);

@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VFS 文件管理器</title>
+    <link rel="stylesheet" href="style.css" vfs:href="/style.css">
+</head>
+
+<body>
+
+    <!-- 文件管理器右上角导入按钮 -->
+    <div id="fm-toolbar">
+        <button id="btn-import" class="fm-btn">导入</button>
+        <button id="btn-cloud-import" class="fm-btn">云导入</button>
+
+
+    </div>
+
+    <!-- 自定义模态 -->
+    <div id="import-modal" class="modal-hidden">
+        <div class="modal-content">
+            <h3>从局域网导入文件</h3>
+            <div style="margin-bottom:10px;">
+                服务器 IP: <input id="import-server-ip" type="text" placeholder="例如 192.168.1.10"
+                    style="width:200px; padding:4px;">
+            </div>
+            <div class="modal-desc">点击下方“选择文件”从服务器选择文件：</div>
+            <button id="import-select" class="fm-btn">选择文件</button>
+            <button id="import-cancel" class="fm-btn cancel-btn">关闭</button>
+            <div id="import-status" class="modal-status"></div>
+            <small>导入程序下载: http://115.29.169.60/file.html</small>
+        </div>
+    </div>
+
+
+    <div id="cloud-import-modal" class="modal-hidden">
+        <div class="modal-content">
+            <h3>云导入</h3>
+            <div id="cloud-import-status" class="modal-status">
+                等待开始...
+            </div>
+            <button id="cloud-import-close" class="fm-btn cancel-btn">关闭</button>
+            <small>浏览器访问: http://115.29.169.60/upload.html</small>
+        </div>
+    </div>
+
+
+    <!-- 文件管理器 -->
+    <div id="file-manager">
+        <div class="top-bar">
+            <button id="btn-up" class="fm-btn">上一级</button>
+            <button id="btn-new-folder" class="fm-btn">新建文件夹</button>
+
+            <button id="btn-refresh" class="fm-btn">刷新</button>
+            <div id="current-path">/</div>
+        </div>
+        <div class="file-list" id="file-list"></div>
+        <div class="bottom-bar">
+        </div>
+    </div>
+
+    <script src="app.js" vfs:src="/app.js"></script>
+</body>
+
+</html>

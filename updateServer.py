@@ -92,18 +92,22 @@ def aeskey():
     f = (l + u)[:14]
     return f"{a}{f}{s}"
 
-AES_KEY = aeskey().encode('utf-8')
+
+AES_KEY = aeskey().encode("utf-8")
+
 
 # -------------------- AES 加解密 --------------------
 def aes_encrypt(data: str) -> str:
     cipher = AES.new(AES_KEY, AES.MODE_ECB)
-    encrypted = cipher.encrypt(pad(data.encode('utf-8'), AES.block_size))
-    return base64.b64encode(encrypted).decode('utf-8')
+    encrypted = cipher.encrypt(pad(data.encode("utf-8"), AES.block_size))
+    return base64.b64encode(encrypted).decode("utf-8")
+
 
 def aes_decrypt(enc: str) -> str:
     cipher = AES.new(AES_KEY, AES.MODE_ECB)
     decrypted = unpad(cipher.decrypt(base64.b64decode(enc)), AES.block_size)
-    return decrypted.decode('utf-8')
+    return decrypted.decode("utf-8")
+
 
 # -------------------- chunk --------------------
 def chunk(text, type6, chunk_size=510, prefix_overhead=None):
@@ -112,19 +116,20 @@ def chunk(text, type6, chunk_size=510, prefix_overhead=None):
     if not type6.isalnum() or len(type6) != 6:
         raise ValueError("type 必须6位字母数字")
 
-    base64_text = base64.b64encode(text.encode('utf-8')).decode('utf-8')
+    base64_text = base64.b64encode(text.encode("utf-8")).decode("utf-8")
     content_size = chunk_size - prefix_overhead
     total_chunks = (len(base64_text) + content_size - 1) // content_size
 
-    group_id = ''.join(random.choice('0123456789abcdef') for _ in range(32))
+    group_id = "".join(random.choice("0123456789abcdef") for _ in range(32))
     segments = []
 
     for i in range(total_chunks):
-        chunk_content = base64_text[i*content_size:(i+1)*content_size]
+        chunk_content = base64_text[i * content_size : (i + 1) * content_size]
         prefix = f"{type6}>{group_id}@{i}~{total_chunks-1}:"
         segments.append(prefix + chunk_content)
 
     return segments
+
 
 # -------------------- 获取用户名 --------------------
 def get_username_from_token(token):
@@ -134,36 +139,48 @@ def get_username_from_token(token):
     except Exception:
         return "unknown"
 
+
 # -------------------- pushToInbox --------------------
 def push_to_inbox(text, id6, token, api_host):
     headers = {"Authorization": f"Bearer {token}"}
 
     # -------- 获取或创建 Inbox ID --------
     q = aes_encrypt(f"parentid=0&isNoteNode=true&timestamp={int(time.time() * 1000)}")
-    resp = requests.get(f"{api_host}/CloudNotes/api/Notes/GetByParentId?{q}", headers=headers)
+    resp = requests.get(
+        f"{api_host}/CloudNotes/api/Notes/GetByParentId?{q}", headers=headers
+    )
     result = resp.json()
     if result.get("code") != 0 or not result.get("data"):
         raise RuntimeError("获取笔记失败")
-    
+
     notes_data = json.loads(aes_decrypt(result["data"]))
-    inbox = next((n for n in notes_data.get("noteList", [])
-                  if n.get("fileUrl") == "ColumnOS Push Service Inbox v2" and n.get("type") == 0), None)
+    inbox = next(
+        (
+            n
+            for n in notes_data.get("noteList", [])
+            if n.get("fileUrl") == "ColumnOS Push Service Inbox v2"
+            and n.get("type") == 0
+        ),
+        None,
+    )
 
     if inbox:
         inbox_id = inbox["fileId"]
     else:
-        new_id = ''.join(random.choice('abcdef0123456789') for _ in range(32))
+        new_id = "".join(random.choice("abcdef0123456789") for _ in range(32))
         payload = {
             "fileId": new_id,
             "fileName": "ColumnOS Push Service Inbox v2",
             "fileUrl": "ColumnOS Push Service Inbox v2",
             "parentId": "0",
-            "type": "0"
+            "type": "0",
         }
         encrypted = aes_encrypt(json.dumps(payload))
-        create_resp = requests.post(f"{api_host}/CloudNotes/api/Notes/AddOrUpdate",
-                                    headers={**headers, "Content-Type": "application/json"},
-                                    data=encrypted).json()
+        create_resp = requests.post(
+            f"{api_host}/CloudNotes/api/Notes/AddOrUpdate",
+            headers={**headers, "Content-Type": "application/json"},
+            data=encrypted,
+        ).json()
         if create_resp.get("code") == 0:
             inbox_id = new_id
         else:
@@ -176,20 +193,22 @@ def push_to_inbox(text, id6, token, api_host):
         part2 = block[255:] if len(block) > 255 else ""
 
         payload = {
-            "fileId": ''.join(random.choice('abcdef0123456789') for _ in range(32)),
+            "fileId": "".join(random.choice("abcdef0123456789") for _ in range(32)),
             "fileName": part1,
             "fileUrl": part2,
             "parentId": inbox_id,
-            "type": "0"
+            "type": "0",
         }
         encrypted = aes_encrypt(json.dumps(payload))
 
         # 重试上传
         for attempt in range(10):
             try:
-                upload_resp = requests.post(f"{api_host}/CloudNotes/api/Notes/AddOrUpdate",
-                                            headers={**headers, "Content-Type": "application/json"},
-                                            data=encrypted).json()
+                upload_resp = requests.post(
+                    f"{api_host}/CloudNotes/api/Notes/AddOrUpdate",
+                    headers={**headers, "Content-Type": "application/json"},
+                    data=encrypted,
+                ).json()
                 if upload_resp.get("code") == 0:
                     print(f"子节点上传成功: {payload['fileId']}")
                     break
@@ -203,5 +222,165 @@ def push_to_inbox(text, id6, token, api_host):
 
     return True
 
-#token = login("24wuyixuan","cfc8522bc8db","http://sxz.api.zykj.org")
-#push_to_inbox("dsaffassssssssdd","xxxxxx",token,"http://sxz.api.zykj.org",) 
+
+# token = login("24wuyixuan","cfc8522bc8db","http://sxz.api.zykj.org")
+# push_to_inbox("dsaffassssssssdd","xxxxxx",token,"http://sxz.api.zykj.org",)
+class TokenStore:
+    def __init__(self, path):
+        self.path = path
+        self.db = {"users": []}
+        self.loaded = False
+
+    # -------------------- 加载 / 保存 --------------------
+    def load(self):
+        if self.loaded:
+            return
+
+        if os.path.exists(self.path):
+            try:
+                with open(self.path, "r", encoding="utf-8") as f:
+                    self.db = json.load(f)
+            except Exception as e:
+                print("tokenStore JSON 解析失败:", e)
+
+        if "users" not in self.db:
+            self.db["users"] = []
+
+        self.loaded = True
+
+    def save(self):
+        os.makedirs(os.path.dirname(self.path), exist_ok=True)
+        with open(self.path, "w", encoding="utf-8") as f:
+            json.dump(self.db, f, ensure_ascii=False, indent=2)
+
+    # -------------------- 查找用户 --------------------
+    def findUser(self, username, apiHost):
+        return next(
+            (
+                u
+                for u in self.db["users"]
+                if u.get("username") == username and u.get("apiHost") == apiHost
+            ),
+            None,
+        )
+
+    def findUserByAlias(self, alias):
+        return next((u for u in self.db["users"] if u.get("alias") == alias), None)
+
+    # -------------------- 更新 / 新增用户 --------------------
+    def updateUser(self, username, password, apiHost, alias=None):
+        self.load()
+
+        u = self.findUser(username, apiHost)
+        if not u:
+            u = {
+                "username": username,
+                "password": password,
+                "apiHost": apiHost,
+                "alias": alias or "",
+                "accessToken": "",
+                "refreshToken": "",
+                "expireAt": 0,
+                "refreshExpireAt": 0,
+            }
+            self.db["users"].append(u)
+        else:
+            u["password"] = password
+            if alias:
+                u["alias"] = alias
+
+        self.save()
+
+    # -------------------- API 调用 --------------------
+    def _login(self, u):
+        try:
+            resp = requests.post(
+                u["apiHost"] + "/api/TokenAuth/Login",
+                headers={"Content-Type": "application/json"},
+                data=json.dumps({"userName": u["username"], "password": u["password"]}),
+            )
+            json_data = resp.json()
+            if not json_data.get("success"):
+                return None
+
+            r = json_data["result"]
+            u["accessToken"] = r["accessToken"]
+            u["refreshToken"] = r["refreshToken"]
+            u["expireAt"] = time.time() * 1000 + r["expireInSeconds"] * 1000
+            u["refreshExpireAt"] = (
+                time.time() * 1000 + r["refreshExpireInSeconds"] * 1000
+            )
+
+            self.save()
+            return u["accessToken"]
+        except Exception as e:
+            print("登录失败:", e)
+            return None
+
+    def _refreshToken(self, u):
+        try:
+            resp = requests.post(
+                u["apiHost"] + "/api/TokenAuth/RefreshToken",
+                headers={
+                    "Content-Type": "application/json",
+                    "refreshtoken": u["refreshToken"],
+                    "Authorization": "Bearer " + u["accessToken"],
+                },
+            )
+            json_data = resp.json()
+            if not json_data.get("success"):
+                return None
+
+            r = json_data["result"]
+            u["accessToken"] = r["accessToken"]
+            u["refreshToken"] = r["refreshToken"]
+            u["expireAt"] = time.time() * 1000 + r["expireInSeconds"] * 1000
+            u["refreshExpireAt"] = (
+                time.time() * 1000 + r["refreshExpireInSeconds"] * 1000
+            )
+
+            self.save()
+            return u["accessToken"]
+        except Exception as e:
+            print("刷新 token 出错:", e)
+            return None
+
+    # -------------------- 获取 Token --------------------
+    def _getToken(self, u):
+        now = time.time() * 1000
+
+        if u.get("accessToken") and now < u["expireAt"]:
+            return u["accessToken"]
+
+        if u.get("refreshToken") and now < u["refreshExpireAt"]:
+            tk = self._refreshToken(u)
+            if tk:
+                return tk
+
+        return self._login(u)
+
+    def getTokenByUsername(self, username, apiHost):
+        self.load()
+
+        u = self.findUser(username, apiHost)
+        if not u:
+            return None
+
+        return self._getToken(u)
+
+    def getTokenByAlias(self, alias):
+        self.load()
+
+        u = self.findUserByAlias(alias)
+        if not u:
+            return None
+
+        return self._getToken(u)
+
+    def getApiHostByAlias(self, alias):
+        self.load()
+        u = self.findUserByAlias(alias)
+        return u["apiHost"] if u else None
+
+if __name__ == "__main__":
+    store = TokenStore("data/tokens.json")
