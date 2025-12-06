@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文本编辑器</title>
+    <link rel="stylesheet" href="style.css" vfs:href="/style.css">
+    <!-- Ace Editor -->
+    <script src="ace/ace.js" vfs:src="/ace/ace.js"></script>
+</head>
+
+<body>
+    <!-- 顶部导航栏 -->
+    <div id="navBar">
+        <div id="fileName">未加载文件</div>
+        <div class="controls">
+            <button id="loadBtn">加载文件</button>
+        </div>
+    </div>
+
+    <!-- 编辑器容器 -->
+    <div id="editorContainer"></div>
+
+    <!-- 模态选择文件 -->
+    <input type="file" id="fileInput" accept=".txt,.js,.json,.html,.css" style="display:none">
+
+    <script src="script.js" vfs:src="/script.js"></script>
+</body>
+
+</html>

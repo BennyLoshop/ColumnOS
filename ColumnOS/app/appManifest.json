@@ -48,5 +48,10 @@
     "appName": "音乐",
     "appId": "com.columnos.reader.music",
     "appIcon": "/system/app/com.columnos.reader.music/icon.png"
+  },
+  {
+    "appName": "文本查看器",
+    "appId": "com.columnos.reader.text",
+    "appIcon": "/system/app/com.columnos.reader.text/icon.png"
   }
 ]
