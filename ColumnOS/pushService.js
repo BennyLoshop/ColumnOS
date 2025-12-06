@@ -175,85 +175,100 @@ async function createInbox() {
         return null;
     }
 }
+async function getCachedInboxId() {
+    try {
+        // 尝试从 vfs 读取
+        const blob = await window.globalVfs.getFile("/systemdata/pushcache/inboxid.json");
+        if (blob) {
+            const text = await blob.text();
+            const data = JSON.parse(text);
+            if (data && data.inboxId) {
+                window.inboxId = data.inboxId;
+                return data.inboxId;
+            }
+        }
+    } catch (e) {
+        console.warn("读取 inboxId 缓存失败", e);
+    }
+
+    // 如果没有缓存，调用 getInbox
+    const id = await getInbox();
+    if (id) {
+        await cacheInboxId(id);
+    }
+    return id;
+}
+
+async function cacheInboxId(id) {
+    try {
+        const blob = new Blob([JSON.stringify({ inboxId: id })], { type: "application/json" });
+        await window.globalVfs.setFile("/systemdata/pushcache/inboxid.json", blob);
+    } catch (e) {
+        console.error("缓存 inboxId 失败", e);
+    }
+}
+
 async function readInbox() {
+    // 优先从缓存获取 inboxId
     if (!window.inboxId) {
-        console.error("readInbox: window.inboxId 为空，你需要先 createInbox()");
-        return [];
+        const cachedId = await getCachedInboxId();
+        if (!cachedId) return [];
     }
 
     const info = await window.initLogin();
     if (!info) return [];
 
-    const token = await window.getToken();
+    let token = await window.getToken();
     if (!token) return [];
 
-    // 构造查询参数
-    const queryObj = {
-        parentid: window.inboxId,
-        isNoteNode: true,
-        timestamp: Date.now()
-    };
+    async function fetchInbox(id) {
+        const queryObj = { parentid: id, isNoteNode: true, timestamp: Date.now() };
+        const encryptedQuery = window.aesEncrypt(
+            Object.entries(queryObj).map(([k, v]) => `${k}=${v}`).join("&")
+        );
 
-    const encryptedQuery = window.aesEncrypt(
-        Object.entries(queryObj)
-            .map(([k, v]) => `${k}=${v}`)
-            .join("&")
-    );
+        const url = `${info.apiHost}/CloudNotes/api/Notes/GetByParentId?${encryptedQuery}`;
 
-    const url = `${info.apiHost}/CloudNotes/api/Notes/GetByParentId?${encryptedQuery}`;
-
-    // 请求数据
-    let resp;
-    try {
-        resp = await fetch(url, {
-            method: "GET",
-            headers: {
-                "Authorization": `Bearer ${token}`
-            }
-        });
-    } catch (e) {
-        console.error("readInbox 请求错误:", e);
-        return [];
+        try {
+            const resp = await fetch(url, { method: "GET", headers: { "Authorization": `Bearer ${token}` } });
+            const json = await resp.json();
+            if (json.code !== 0) throw new Error("返回错误 code != 0");
+            return JSON.parse(window.aesDecrypt(json.data));
+        } catch (e) {
+            console.error("fetchInbox 失败:", e);
+            return null;
+        }
     }
 
-    const json = await resp.json();
-    if (json.code !== 0) {
-        console.error("readInbox 返回错误:", json);
-        return [];
+    // 尝试获取 inbox 内容
+    let decrypted = await fetchInbox(window.inboxId);
+
+    // 如果失败，重新获取 inboxId
+    if (!decrypted) {
+        console.log("重新获取 inboxId...");
+        const newId = await getInbox();
+        if (!newId) return [];
+        window.inboxId = newId;
+        await cacheInboxId(newId);
+
+        // 再次尝试获取
+        decrypted = await fetchInbox(newId);
+        if (!decrypted) return [];
     }
 
-    let decrypted;
-    try {
-        decrypted = JSON.parse(window.aesDecrypt(json.data));
-    } catch (e) {
-        console.error("readInbox 解密失败:", e);
-        return [];
-    }
-
-    // noteList
     const list = decrypted.noteList || [];
-
-    // 过滤 type = 0
     const toProcess = list.filter(x => x.type === 0);
 
     const results = [];
-
     for (const item of toProcess) {
-        const str = item.fileName + item.fileUrl;
-        results.push(str);
+        results.push(item.fileName + item.fileUrl);
 
-        // ============ 删除部分 =============
-
-        // 待删除的 fileId 数组，并加密
+        // 删除已处理项
         const deletePayload = window.aesEncrypt(JSON.stringify([item.fileId]));
-
         try {
             await fetch(`${info.apiHost}/CloudNotes/api/Notes/Delete`, {
                 method: "POST",
-                headers: {
-                    "Authorization": `Bearer ${token}`,
-                    "Content-Type": "application/json"
-                },
+                headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
                 body: deletePayload
             });
         } catch (e) {
@@ -263,6 +278,7 @@ async function readInbox() {
 
     return results;
 }
+
 async function pushToInbox(text, id6, token, apiHost) {
     if (!window.chunk) {
         console.error("缺少 window.chunk(text,id6) 函数！");
@@ -273,29 +289,57 @@ async function pushToInbox(text, id6, token, apiHost) {
         return false;
     }
 
-    // 时间戳
     const ts = () => Date.now();
+    const noCacheHeaders = { "Authorization": `Bearer ${token}` };
 
-    // GET headers + no-cache
-    const noCacheHeaders = {
-        "Authorization": `Bearer ${token}`
-    };
+    // --------- 内部函数：解析JWT获取用户名 ----------
+    function getUsernameFromToken(token) {
+        try {
+            const payload = JSON.parse(atob(token.split(".")[1]));
+            return payload.username || payload.sub || "unknown";
+        } catch (e) {
+            console.warn("解析 JWT 用户名失败", e);
+            return "unknown";
+        }
+    }
 
-    // ------------------- 内部函数: 获取或创建 Inbox -------------------
+    // --------- 内部函数: 缓存 InboxID ----------
+    async function cacheInboxForUser(inboxId) {
+        try {
+            const username = getUsernameFromToken(token);
+            const encodedHost = encodeURIComponent(apiHost);
+            const path = `/systemdata/pushcache/pushusers/${encodedHost}/${username}.json`;
+            const blob = new Blob([JSON.stringify({ inboxId })], { type: "application/json" });
+            await window.globalVfs.setFile(path, blob);
+        } catch (e) {
+            console.error("缓存 pushInbox ID 失败", e);
+        }
+    }
+
+    // --------- 内部函数: 获取或创建 Inbox ----------
     async function getOrCreateInbox(token, apiHost) {
         try {
-            // 获取笔记列表 —— 加 time=xxx
-            const q = window.aesEncrypt("parentid=0&isNoteNode=true&timestamp=" + Date.now());
-
-            const resp = await fetch(
-                `${apiHost}/CloudNotes/api/Notes/GetByParentId?${q}`,
-                {
-                    method: "GET",
-                    headers: noCacheHeaders
+            // 先尝试从 VFS 缓存读取
+            const username = getUsernameFromToken(token);
+            const encodedHost = encodeURIComponent(apiHost);
+            const path = `/systemdata/pushcache/pushusers/${encodedHost}/${username}.json`;
+            try {
+                const blob = await window.globalVfs.getFile(path);
+                if (blob) {
+                    const text = await blob.text();
+                    const data = JSON.parse(text);
+                    if (data && data.inboxId) return data.inboxId;
                 }
-            );
+            } catch (e) {
+                // 忽略读取错误
+            }
 
-
+            // 读取不到缓存，走原有逻辑
+            const q = window.aesEncrypt("parentid=0&isNoteNode=true&timestamp=" + Date.now());
+            const resp = await fetch(`${apiHost}/CloudNotes/api/Notes/GetByParentId?${q}`, {
+                method: "GET",
+                headers: noCacheHeaders
+            });
             const result = await resp.json();
             if (result.code !== 0 || !result.data) return null;
 
@@ -303,7 +347,10 @@ async function pushToInbox(text, id6, token, apiHost) {
             const inbox = notesData.noteList.find(
                 n => n.fileUrl === "ColumnOS Push Service Inbox v2" && n.type === 0
             );
-            if (inbox) return inbox.fileId;
+            if (inbox) {
+                await cacheInboxForUser(inbox.fileId);
+                return inbox.fileId;
+            }
 
             // 没找到则创建
             const newId = Array.from({ length: 32 }, () => "abcdef0123456789"[Math.floor(Math.random() * 16)]).join('');
@@ -316,19 +363,16 @@ async function pushToInbox(text, id6, token, apiHost) {
             };
             const encrypted = window.aesEncrypt(JSON.stringify(payload));
 
-            const createResp = await fetch(
-                `${apiHost}/CloudNotes/api/Notes/AddOrUpdate`,
-                {
-                    method: "POST",
-                    headers: {
-                        "Authorization": `Bearer ${token}`,
-                        "Content-Type": "application/json"
-                    },
-                    body: encrypted
-                }
-            ).then(r => r.json());
+            const createResp = await fetch(`${apiHost}/CloudNotes/api/Notes/AddOrUpdate`, {
+                method: "POST",
+                headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+                body: encrypted
+            }).then(r => r.json());
 
-            if (createResp.code === 0) return newId;
+            if (createResp.code === 0) {
+                await cacheInboxForUser(newId);
+                return newId;
+            }
             return null;
         } catch (e) {
             console.error("获取或创建 Inbox 失败", e);
@@ -350,9 +394,7 @@ async function pushToInbox(text, id6, token, apiHost) {
     }
 
     const randomId = (len = 32) =>
-        Array.from({ length: len }, () =>
-            "abcdef0123456789"[Math.floor(Math.random() * 16)]
-        ).join('');
+        Array.from({ length: len }, () => "abcdef0123456789"[Math.floor(Math.random() * 16)]).join('');
 
     for (const block of items) {
         let part1 = block;
@@ -379,17 +421,11 @@ async function pushToInbox(text, id6, token, apiHost) {
 
             while (attempt < maxRetries) {
                 try {
-                    resp = await fetch(
-                        `${apiHost}/CloudNotes/api/Notes/AddOrUpdate`,
-                        {
-                            method: "POST",
-                            headers: {
-                                "Authorization": `Bearer ${token}`,
-                                "Content-Type": "application/json"
-                            },
-                            body: encrypted
-                        }
-                    ).then(r => r.json());
+                    resp = await fetch(`${apiHost}/CloudNotes/api/Notes/AddOrUpdate`, {
+                        method: "POST",
+                        headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+                        body: encrypted
+                    }).then(r => r.json());
 
                     if (resp.code === 0) {
                         console.log("子节点上传成功:", payload.fileId);
@@ -402,23 +438,19 @@ async function pushToInbox(text, id6, token, apiHost) {
                 }
 
                 attempt++;
-                if (attempt < maxRetries) {
-                    // 等待 200ms 再重试
-                    await new Promise(res => setTimeout(res, 200));
-                }
+                if (attempt < maxRetries) await new Promise(res => setTimeout(res, 200));
             }
 
             console.error(`子节点上传失败，已重试 ${maxRetries} 次`, resp);
             return resp;
         }
 
-        // 调用方法
         await uploadWithRetry(apiHost, token, encrypted, payload);
-
     }
 
     return true;
 }
+
 
 function sleep(ms) {
     return new Promise(r => setTimeout(r, ms));
