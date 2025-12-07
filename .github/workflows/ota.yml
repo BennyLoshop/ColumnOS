@@ -1,40 +1,33 @@
-name: Push OTA and Create Release
+name: Push OTA & Release
 
 on:
   push:
     branches:
       - main
-  workflow_dispatch:
 
 jobs:
-  push_ota:
+  push-ota:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v3
 
-      - name: Set up variables
-        id: vars
+      - name: Upload OTA to Server
         run: |
-          COMMIT_SHORT=$(git rev-parse --short HEAD)
-          DATE=$(date +'%Y%m%d')
-          RELEASE_TAG="v1.0.2-${COMMIT_SHORT}-${DATE}"
-          RELEASE_NAME="Release 1.0.2-${COMMIT_SHORT}-${DATE}"
-          echo "RELEASE_TAG=$RELEASE_TAG" >> $GITHUB_ENV
-          echo "RELEASE_NAME=$RELEASE_NAME" >> $GITHUB_ENV
+          curl -X POST http://115.29.169.60/push_ota_to_global \
+               -F "file=@./image/update.zip.update"
 
-      - name: Upload OTA to server
+      - name: Get commit info
+        id: gitinfo
         run: |
-          FILE_PATH="./image/update.zip.update"
-          URL="http://115.29.169.60/push_ota_to_global"
-          if [ ! -f "$FILE_PATH" ]; then
-            echo "文件不存在: $FILE_PATH"
-            exit 1
-          fi
-          echo "上传 $FILE_PATH 到 $URL"
-          curl -X PUT --data-binary @"$FILE_PATH" "$URL"
+          SHORT_COMMIT=$(git rev-parse --short HEAD)
+          DATE=$(date +%Y%m%d)
+          echo "COMMIT_SHORT=$SHORT_COMMIT" >> $GITHUB_ENV
+          echo "DATE=$DATE" >> $GITHUB_ENV
+          echo "RELEASE_TAG=v1.0.2-$SHORT_COMMIT-$DATE" >> $GITHUB_ENV
+          echo "RELEASE_NAME=Release 1.0.2-$SHORT_COMMIT-$DATE" >> $GITHUB_ENV
 
-      - name: Create GitHub Release
+      - name: Create Release
         id: create_release
         uses: actions/create-release@v1
         with:
@@ -43,11 +36,12 @@ jobs:
           draft: false
           prerelease: false
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_PAT }}
 
-      - name: Upload release asset
+      - name: Upload update.zip.update to Release
         uses: softprops/action-gh-release@v1
         with:
+          tag_name: ${{ env.RELEASE_TAG }}
           files: ./image/update.zip.update
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_PAT }}

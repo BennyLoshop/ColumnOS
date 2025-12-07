@@ -67,28 +67,29 @@ def push_ota_api():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
-@app.route("/push_ota_to_global", methods=["PUT"])
+@app.route("/push_ota_to_global", methods=["POST"])
 def push_ota_to_global():
-    if "file" not in request.files:
-        return jsonify({"success": False, "error": "缺少文件"}), 400
+    if 'file' not in request.files:
+        return jsonify({"error": "No file part"}), 400
 
-    f = request.files["file"]
-    filename = secure_filename(f.filename)
-    save_path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
-    f.save(save_path)
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({"error": "No selected file"}), 400
+
+    save_path = os.path.join(UPLOAD_DIR, file.filename)
+    file.save(save_path)
+
+    # 获取 store 中所有用户 alias
+    store.load()
+    alias_list = [u['alias'] for u in store.db['users']]
 
     try:
-        store.load()
-        all_aliases = [u["alias"] for u in store.db.get("users", [])]
-        if not all_aliases:
-            return jsonify({"success": False, "error": "没有用户"}), 400
-
-        pushOta(save_path, all_aliases)
-        return jsonify(
-            {"success": True, "file": filename, "pushed_to": len(all_aliases)}
-        )
+        # 推送 OTA
+        pushOta(save_path, alias_list)
     except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
+        return jsonify({"error": str(e)}), 500
+
+    return jsonify({"success": True, "path": save_path, "pushed_to": len(alias_list)}), 200
 
 
 if __name__ == "__main__":
