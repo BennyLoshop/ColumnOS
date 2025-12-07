@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>每日新闻</title>
+    <link rel="stylesheet" vfs:href="/style.css">
+</head>
+<body>
+<div id="app">
+    <header>
+        <h1>新闻</h1>
+        <div id="push-date" class="push-date">加载中...</div>
+    </header>
+    <div id="news-list-container">
+        <ul id="news-list"></ul>
+    </div>
+</div>
+
+<!-- 新闻 modal -->
+<div id="news-modal" class="modal">
+    <div class="modal-container">
+        <div class="modal-header">
+            <span id="modal-title">新闻标题</span>
+            <button id="modal-close" class="modal-close">×</button>
+        </div>
+        <div class="modal-body" id="modal-body"></div>
+    </div>
+</div>
+
+<!-- 推送选择 modal -->
+<div id="push-select-modal" class="modal">
+    <div class="modal-container">
+        <div class="modal-header">
+            <span>选择日期推送</span>
+            <button id="push-select-close" class="modal-close">×</button>
+        </div>
+        <div class="modal-body" id="push-select-list"></div>
+    </div>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<script vfs:src="/news.js"></script>
+</body>
+</html>
