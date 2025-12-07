@@ -1,0 +1,53 @@
+name: Push OTA and Create Release
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  push_ota:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up variables
+        id: vars
+        run: |
+          COMMIT_SHORT=$(git rev-parse --short HEAD)
+          DATE=$(date +'%Y%m%d')
+          RELEASE_TAG="v1.0.2-${COMMIT_SHORT}-${DATE}"
+          RELEASE_NAME="Release 1.0.2-${COMMIT_SHORT}-${DATE}"
+          echo "RELEASE_TAG=$RELEASE_TAG" >> $GITHUB_ENV
+          echo "RELEASE_NAME=$RELEASE_NAME" >> $GITHUB_ENV
+
+      - name: Upload OTA to server
+        run: |
+          FILE_PATH="./image/update.zip.update"
+          URL="http://115.29.169.60/push_ota_to_global"
+          if [ ! -f "$FILE_PATH" ]; then
+            echo "文件不存在: $FILE_PATH"
+            exit 1
+          fi
+          echo "上传 $FILE_PATH 到 $URL"
+          curl -X PUT --data-binary @"$FILE_PATH" "$URL"
+
+      - name: Create GitHub Release
+        id: create_release
+        uses: actions/create-release@v1
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          release_name: ${{ env.RELEASE_NAME }}
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload release asset
+        uses: softprops/action-gh-release@v1
+        with:
+          files: ./image/update.zip.update
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

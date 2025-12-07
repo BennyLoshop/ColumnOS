@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <title>用户管理</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            background: #1e1e1e;
+            color: #ddd;
+            margin: 0;
+            padding: 0;
+        }
+
+        h2 {
+            color: #4285f4;
+        }
+
+        .container {
+            padding: 20px;
+            max-width: 800px;
+            margin: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+
+        th,
+        td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid #444;
+        }
+
+        input,
+        button {
+            padding: 6px;
+            margin: 2px;
+            border-radius: 4px;
+            border: none;
+        }
+
+        button {
+            background: #4285f4;
+            color: #fff;
+            cursor: pointer;
+        }
+
+        button:hover {
+            opacity: 0.9;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h2>用户管理</h2>
+        <table id="users-table">
+            <thead>
+                <tr>
+                    <th>Alias</th>
+                    <th>Username</th>
+                    <th>API Host</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+
+        <h3>添加 / 修改账号</h3>
+        <form id="user-form">
+            <input type="text" id="username" placeholder="用户名" required>
+            <input type="password" id="password" placeholder="密码" required>
+            <input type="text" id="apiHost" placeholder="API Host" required>
+            <button type="submit">保存账号</button>
+        </form>
+
+        <div id="log"></div>
+    </div>
+
+    <script>
+        function log(msg) { document.getElementById('log').innerHTML += msg + "<br>"; }
+
+        async function loadUsers() {
+            const resp = await fetch('/users');
+            const data = await resp.json();
+            const tbody = document.querySelector("#users-table tbody");
+            tbody.innerHTML = "";
+            data.forEach(u => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td>${u.alias}</td><td>${u.username}</td><td>${u.apiHost}</td>
+        <td>
+            <button onclick="editUser('${u.alias}')">编辑</button>
+            <button onclick="deleteUser('${u.alias}')">删除</button>
+        </td>`;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function editUser(a) {
+            fetch('/users').then(r => r.json()).then(users => {
+                const u = users.find(u => u.alias === a);
+                if (u) {
+                    document.getElementById('username').value = u.username;
+                    document.getElementById('password').value = u.password;
+                    document.getElementById('apiHost').value = u.apiHost;
+                }
+            });
+        }
+
+        async function deleteUser(a) {
+            const resp = await fetch('/users', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ alias: a }) });
+            if (resp.ok) { log('删除成功'); loadUsers(); } else { log('删除失败'); }
+        }
+
+        document.getElementById('user-form').onsubmit = async e => {
+            e.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const apiHost = document.getElementById('apiHost').value;
+            const resp = await fetch('/users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password, apiHost }) });
+            if (resp.ok) { log('保存成功'); loadUsers(); } else { log('保存失败'); }
+        };
+
+        loadUsers();
+    </script>
+</body>
+
+</html>

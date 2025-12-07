@@ -10,6 +10,23 @@ import os
 from datetime import datetime
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad, unpad
+from urllib.parse import urlparse
+
+
+def aeskey():
+    e = ":F0wKU!Qg3}UkbW+w[:9|D3-5h=:T;7t#_GZ4#G;~ZNSq{8;}QIP>'{q.lje"
+    t = datetime.now()
+    n = t.year
+    r = t.month
+    o = t.day
+    i = 33 + o * r * 33
+    a = chr(i % 94 + 33)
+    s = e[o + r]
+    c = n * r * o % len(e)
+    u = e[:c]
+    l = e[c:]
+    f = (l + u)[:14]
+    return f"{a}{f}{s}"
 
 
 def login(userName: str, pwd: str, apiHost: str) -> str:
@@ -74,26 +91,6 @@ def uploadFileToOss(token: str, apiHost: str, filePath: str) -> str:
     url = f"https://{r['bucket']}.oss-cn-hangzhou.aliyuncs.com/{remote_file}"
     print("上传成功:", url)
     return url
-
-
-# -------------------- AES key 生成 --------------------
-def aeskey():
-    e = ":F0wKU!Qg3}UkbW+w[:9|D3-5h=:T;7t#_GZ4#G;~ZNSq{8;}QIP>'{q.lje"
-    t = datetime.now()
-    n = t.year
-    r = t.month
-    o = t.day
-    i = 33 + o * r * 33
-    a = chr(i % 94 + 33)
-    s = e[o + r]
-    c = n * r * o % len(e)
-    u = e[:c]
-    l = e[c:]
-    f = (l + u)[:14]
-    return f"{a}{f}{s}"
-
-
-AES_KEY = aeskey().encode("utf-8")
 
 
 # -------------------- AES 加解密 --------------------
@@ -225,11 +222,21 @@ def push_to_inbox(text, id6, token, api_host):
 
 # token = login("24wuyixuan","cfc8522bc8db","http://sxz.api.zykj.org")
 # push_to_inbox("dsaffassssssssdd","xxxxxx",token,"http://sxz.api.zykj.org",)
+
+
 class TokenStore:
     def __init__(self, path):
         self.path = path
         self.db = {"users": []}
         self.loaded = False
+
+    def getAnyUser(self):
+        self.load()
+        if not self.db["users"]:
+            return None, None
+        u = self.db["users"][0]  # 取第一个账号
+        token = self._getToken(u)
+        return token, u["apiHost"]
 
     # -------------------- 加载 / 保存 --------------------
     def load(self):
@@ -253,45 +260,41 @@ class TokenStore:
         with open(self.path, "w", encoding="utf-8") as f:
             json.dump(self.db, f, ensure_ascii=False, indent=2)
 
-    # -------------------- 查找用户 --------------------
-    def findUser(self, username, apiHost):
-        return next(
-            (
-                u
-                for u in self.db["users"]
-                if u.get("username") == username and u.get("apiHost") == apiHost
-            ),
-            None,
-        )
-
+    # -------------------- 根据 alias 查找用户（alias 是唯一主键） --------------------
     def findUserByAlias(self, alias):
         return next((u for u in self.db["users"] if u.get("alias") == alias), None)
 
-    # -------------------- 更新 / 新增用户 --------------------
-    def updateUser(self, username, password, apiHost, alias=None):
+    # -------------------- 更新 / 新增用户（alias = 一个账号） --------------------
+    def updateUser(self, alias, username, password, apiHost):
+        """
+        alias：唯一主键，一个 alias 就对应一个账号
+        """
         self.load()
 
-        u = self.findUser(username, apiHost)
-        if not u:
-            u = {
+        user = self.findUserByAlias(alias)
+
+        if not user:
+            # 新建用户
+            user = {
+                "alias": alias,
                 "username": username,
                 "password": password,
                 "apiHost": apiHost,
-                "alias": alias or "",
                 "accessToken": "",
                 "refreshToken": "",
                 "expireAt": 0,
                 "refreshExpireAt": 0,
             }
-            self.db["users"].append(u)
+            self.db["users"].append(user)
         else:
-            u["password"] = password
-            if alias:
-                u["alias"] = alias
+            # 更新已有用户（覆盖）
+            user["username"] = username
+            user["password"] = password
+            user["apiHost"] = apiHost
 
         self.save()
 
-    # -------------------- API 调用 --------------------
+    # -------------------- API 登录 --------------------
     def _login(self, u):
         try:
             resp = requests.post(
@@ -299,6 +302,7 @@ class TokenStore:
                 headers={"Content-Type": "application/json"},
                 data=json.dumps({"userName": u["username"], "password": u["password"]}),
             )
+
             json_data = resp.json()
             if not json_data.get("success"):
                 return None
@@ -313,10 +317,12 @@ class TokenStore:
 
             self.save()
             return u["accessToken"]
+
         except Exception as e:
             print("登录失败:", e)
             return None
 
+    # -------------------- 刷新 token --------------------
     def _refreshToken(self, u):
         try:
             resp = requests.post(
@@ -327,6 +333,7 @@ class TokenStore:
                     "Authorization": "Bearer " + u["accessToken"],
                 },
             )
+
             json_data = resp.json()
             if not json_data.get("success"):
                 return None
@@ -341,46 +348,86 @@ class TokenStore:
 
             self.save()
             return u["accessToken"]
+
         except Exception as e:
             print("刷新 token 出错:", e)
             return None
 
-    # -------------------- 获取 Token --------------------
+    # -------------------- 统一 token 获取 --------------------
     def _getToken(self, u):
         now = time.time() * 1000
 
+        # access token 还没过期
         if u.get("accessToken") and now < u["expireAt"]:
             return u["accessToken"]
 
+        # 可以 refresh
         if u.get("refreshToken") and now < u["refreshExpireAt"]:
             tk = self._refreshToken(u)
             if tk:
                 return tk
 
+        # 全部失败 → 尝试重新登录
         return self._login(u)
 
-    def getTokenByUsername(self, username, apiHost):
-        self.load()
-
-        u = self.findUser(username, apiHost)
-        if not u:
-            return None
-
-        return self._getToken(u)
-
+    # -------------------- 对外 API：根据 alias 获取 token --------------------
     def getTokenByAlias(self, alias):
         self.load()
 
-        u = self.findUserByAlias(alias)
-        if not u:
+        user = self.findUserByAlias(alias)
+        if not user:
             return None
 
-        return self._getToken(u)
+        return self._getToken(user)
 
     def getApiHostByAlias(self, alias):
         self.load()
         u = self.findUserByAlias(alias)
         return u["apiHost"] if u else None
 
+
+def alias(username, apiHost):
+    """
+    JS 逻辑：
+        const hostFirstPart = apiHost.split("/")[2]?.split(".")[0] || apiHost;
+        const alias = `${username}@${hostFirstPart}`;
+    """
+    try:
+        host = urlparse(apiHost).hostname or apiHost
+        hostFirstPart = host.split(".")[0]
+    except:
+        hostFirstPart = apiHost
+
+    return f"{username}@{hostFirstPart}"
+
+
+def pushOta(otaFilePath, aliasList):
+    ID6 = "OTA000"
+
+    uploadUser = store.getAnyUser()
+    otaUrl = uploadFileToOss(uploadUser[0], uploadUser[1], otaFilePath)
+
+    otaBody = {
+        "type": "OTA",
+        "origin": "system",
+        "title": "System Update",
+        "updateUrl": otaUrl,
+    }
+    otaBody = json.dumps(otaBody)
+
+    for i in aliasList:
+        token = store.getTokenByAlias(i)
+        apiHost = store.getApiHostByAlias(i)
+        push_to_inbox(otaBody, ID6, token, apiHost)
+
+
+
+AES_KEY = aeskey().encode("utf-8")
+store = TokenStore("TokenStore/tokens.json")
+
 if __name__ == "__main__":
-    store = TokenStore("data/tokens.json")
+    _alias = alias("24wuyixuan", "http://sxz.api.zykj.org")
+    store.updateUser(_alias, "24wuyixuan", "cfc8522bc8db", "http://sxz.api.zykj.org")
+    print(_alias)
+    token = store.findUserByAlias(_alias)
+    print(token)

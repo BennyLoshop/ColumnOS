@@ -10,6 +10,7 @@ __pycache__/
 # Distribution / packaging
 .Python
 build/
+TokenStore/
 image/
 develop-eggs/
 dist/

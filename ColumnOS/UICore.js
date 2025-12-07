@@ -159,13 +159,18 @@ function closeLaunchpad() {
 }
 
 // 设置应用列表
+// 设置应用列表
 function setAppList(list) {
     if (!Array.isArray(list)) list = [];
-    apps = list.map(app => ({ ...app }));
+    // 过滤掉不显示的系统应用，用户应用永远显示
+    apps = list
+        .filter(app => app.id.startsWith("com.columnos.") ? app.showInLaunchPad !== false : true)
+        .map(app => ({ ...app }));
 
     // 按名字拼音排序
     apps.sort((a, b) => a.name.localeCompare(b.name, 'zh-Hans-CN-u-co-pinyin'));
 }
+
 // ---------- 创建 Launchpad UI ----------
 function createLaunchpad() {
     container.innerHTML = '';

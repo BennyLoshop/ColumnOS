@@ -12,7 +12,8 @@
   {
     "appName": "检查更新",
     "appId": "com.columnos.update",
-    "appIcon": "/system/app/com.columnos.update/icon.png"
+    "appIcon": "/system/app/com.columnos.update/icon.png",
+    "showInLaunchPad": false
   },
   {
     "appName": "文件",
@@ -37,7 +38,8 @@
   {
     "appName": "应用安装程序",
     "appId": "com.columnos.appinstaller",
-    "appIcon": "/system/app/com.columnos.appinstaller/icon.png"
+    "appIcon": "/system/app/com.columnos.appinstaller/icon.png",
+    "showInLaunchPad": false
   },
   {
     "appName": "信息",
@@ -53,5 +55,10 @@
     "appName": "文本查看器",
     "appId": "com.columnos.reader.text",
     "appIcon": "/system/app/com.columnos.reader.text/icon.png"
+  },
+  {
+    "appName": "在线更新",
+    "appId": "com.columnos.ota",
+    "appIcon": "/system/app/com.columnos.ota/icon.png"
   }
 ]

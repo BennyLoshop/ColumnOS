@@ -486,9 +486,7 @@ async function getAppList() {
         try { userApps = JSON.parse(text); } catch (e) { console.error(e); }
     }
 
-    const allApps = [...systemApps, ...userApps];
-
-    const appsWithBlobIcons = await Promise.all(allApps.map(async app => {
+    const systemAppsWithFlag = await Promise.all(systemApps.map(async app => {
         let iconBlob = null;
         if (app.appIcon) {
             const path = app.appIcon.startsWith("/") ? app.appIcon : `/app/${app.appId}/${app.appIcon}`;
@@ -502,11 +500,31 @@ async function getAppList() {
         return {
             name: app.appName,
             id: app.appId,
-            icon: iconBlob || app.appIcon
+            icon: iconBlob || app.appIcon,
+            showInLaunchPad: app.showInLaunchPad !== undefined ? app.showInLaunchPad : true
         };
     }));
 
-    return appsWithBlobIcons;
+    const userAppsWithFlag = await Promise.all(userApps.map(async app => {
+        let iconBlob = null;
+        if (app.appIcon) {
+            const path = app.appIcon.startsWith("/") ? app.appIcon : `/app/${app.appId}/${app.appIcon}`;
+            try {
+                const blob = await window.globalVfs.getFile(path);
+                if (blob) iconBlob = blob;
+            } catch (e) {
+                console.warn(`获取图标失败: ${path}`, e);
+            }
+        }
+        return {
+            name: app.appName,
+            id: app.appId,
+            icon: iconBlob || app.appIcon,
+            showInLaunchPad: true // 用户应用固定 true
+        };
+    }));
+
+    return [...systemAppsWithFlag, ...userAppsWithFlag];
 }
 
 async function installApp(manifestPath) {

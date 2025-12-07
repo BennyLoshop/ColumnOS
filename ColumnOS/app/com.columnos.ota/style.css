@@ -1,213 +1,121 @@
-/* =================== 全局 =================== */
-body {
+body,
+html {
     margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
-    background-color: #1e1e1e;
-    color: #ddd;
-}
-
-button {
-    outline: none;
-}
-
-/* =================== 文件管理器 =================== */
-#file-manager {
-    max-width: 1000px;
-    margin: 80px auto 20px auto;
-    padding: 10px;
-}
-
-.top-bar, .bottom-bar {
+    padding: 0;
+    height: 100%;
+    background: #121212;
+    color: #e0e0e0;
+    font-family: sans-serif;
     display: flex;
-    align-items: center;
-    gap: 10px;
-    flex-wrap: wrap;
-    margin-bottom: 10px;
-}
-
-#current-path {
-    flex: 1;
-    text-align: left;
-    font-weight: bold;
-}
-
-.file-list {
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-    max-height: 60vh;
-    overflow-y: auto;
-}
-
-.file-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 6px 10px;
-    background: #2a2a2a;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: 0.2s;
-}
-
-.file-item.selected, .file-item:hover {
-    background-color: #444;
-}
-
-.file-actions button {
-    margin-left: 5px;
-}
-
-/* =================== 按钮统一 =================== */
-.fm-btn {
-    cursor: pointer;
-    border: none;
-    padding: 6px 12px;
-    border-radius: 5px;
-    background-color: #3a3a3a;
-    color: #fff;
-    font-size: 14px;
-    transition: 0.2s;
-}
-
-.fm-btn:hover {
-    background-color: #555;
-}
-
-.cancel-btn {
-    background-color: #777;
-}
-
-.cancel-btn:hover {
-    background-color: #999;
-}
-
-/* =================== 模态 =================== */
-#import-modal.modal-hidden {
-    display: none;
-}
-
-#import-modal.modal-visible {
-    display: flex !important;
-}
-
-#import-modal {
-    position: fixed;
-    top: 0; left: 0;
-    width: 100vw; height: 100vh;
-    background-color: rgba(0,0,0,0.7);
     justify-content: center;
     align-items: center;
-    z-index: 99999;
+}
+
+#app {
+    text-align: center;
+}
+
+#update-img {
+    width: 150px;
+    margin-bottom: 20px;
+}
+
+#update-subtitle {
+    margin-bottom: 15px;
+    font-size: 16px;
+}
+
+#progress-bar {
+    width: 200px;
+    height: 8px;
+    background: #333;
+    border-radius: 4px;
+    margin: 0 auto;
+    overflow: hidden;
+}
+
+#progress-fill {
+    width: 0%;
+    height: 100%;
+    background: #4285f4;
+    transition: width 0.2s;
+    border-radius: 4px;
+}
+
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 50;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    justify-content: center;
+    align-items: center;
 }
 
 .modal-content {
     background: #222;
+    color: #fff;
     padding: 20px;
     border-radius: 8px;
-    width: 400px;
-    max-width: 90%;
+    width: 80%;
+    max-width: 300px;
+    text-align: center;
 }
 
-.modal-content h3 {
-    margin-top: 0;
-    margin-bottom: 15px;
-}
-
-.modal-desc {
-    margin-bottom: 15px;
-    font-size: 14px;
-    color: #ccc;
-}
-
-.modal-status {
+.modal-buttons {
     margin-top: 15px;
-    font-size: 14px;
-    color: #ccc;
+    display: flex;
+    justify-content: space-around;
 }
 
-/* =================== 右上角固定 =================== */
-#fm-toolbar {
-    position: fixed;
-    top: 10px;
-    right: 10px;
-    z-index: 100;
+.modal-buttons button {
+    padding: 6px 12px;
+    border: none;
+    border-radius: 5px;
+    background: #4285f4;
+    color: #fff;
+    cursor: pointer;
 }
 
-/* =================== 移动端适配 =================== */
-@media screen and (max-width: 600px) {
-    .file-item {
-        flex-direction: column;
-        align-items: flex-start;
-    }
-    .file-actions {
-        margin-top: 5px;
-    }
-    #file-manager {
-        margin: 100px 10px 20px 10px;
-        padding: 0;
-    }
-}
-/* 模态框输入框美化 */
-#import-server-ip {
-    padding: 6px 10px;           /* 内边距 */
-    border: 1px solid #555;      /* 边框颜色 */
-    border-radius: 5px;          /* 圆角 */
-    background-color: #222;      /* 背景色 */
-    color: #fff;                 /* 字体颜色 */
-    outline: none;               /* 去掉聚焦默认蓝色边框 */
-    font-size: 14px;
-    width: 100%;                 /* 自适应父容器宽度 */
-    box-sizing: border-box;
-    transition: all 0.2s;
+.modal-buttons button:hover {
+    background: #16a085;
 }
 
-/* 聚焦时高亮 */
-#import-server-ip:focus {
-    border-color: #888;
+#toast {
+    visibility: hidden;
+    min-width: 200px;
     background-color: #333;
-}
-#cloud-import-modal.modal-hidden {
-    display: none;
-}
-
-#cloud-import-modal.modal-visible {
-    display: flex !important;
-}
-
-#cloud-import-modal {
+    color: #fff;
+    text-align: center;
+    border-radius: 5px;
+    padding: 10px 20px;
     position: fixed;
-    top: 0; left: 0;
-    width: 100vw;
-    height: 100vh;
-    background-color: rgba(0,0,0,0.7);
-    justify-content: center;
-    align-items: center;
-    z-index: 99999;
+    z-index: 50;
+    left: 50%;
+    bottom: 50px;
+    transform: translateX(-50%);
+    font-size: 14px;
+    opacity: 0;
+    transition: opacity 0.5s, bottom 0.5s;
 }
 
-#cloud-import-modal .modal-content {
-    background: #222;
-    padding: 20px;
+#toast.show {
+    visibility: visible;
+    opacity: 1;
+    bottom: 70px;
+}
+button {
+    display: block;       /* 让 button 变成块级元素 */
+    margin: 20px auto 0;  
+    margin-top:20px;
+    padding: 10px 20px;
+    font-size: 16px;
+    border: none;
     border-radius: 8px;
-    width: 400px;
-    max-width: 90%;
-    text-align: center; /* 文字居中 */
-}
-/* 保存进度动画 */
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-.cloud-loading {
-    display: inline-block;
-    width: 16px;
-    height: 16px;
-    border: 2px solid #ccc;
-    border-top-color: #3a3a3a;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-    vertical-align: middle;
-    margin-right: 6px;
+    background-color: #4285f4;
+    color: white;
+    cursor: pointer;
 }
