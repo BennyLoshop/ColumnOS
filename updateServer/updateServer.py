@@ -6,6 +6,8 @@ from updateUtils import TokenStore, alias, pushOta
 app = Flask(__name__)
 app.config["UPLOAD_FOLDER"] = "uploads"
 os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
+UPLOAD_DIR = "uploads"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 store = TokenStore("TokenStore/tokens.json")
 
