@@ -1,0 +1,126 @@
+body, html {
+    margin:0;
+    padding:0;
+    height:100%;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    background:#1e1e1e;
+    color:#ddd;
+}
+
+#appstore {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+.app-card {
+    display: flex;
+    align-items: center;
+    padding: 10px;
+    background: #2b2b2b;
+    border-radius: 12px;
+    cursor: pointer;
+    gap: 10px;
+}
+
+.app-icon {
+    width: 60px;
+    height: 60px;
+    background-color: #444;
+    background-size: cover;
+    background-position: center;
+    border-radius: 10px;
+    flex-shrink: 0;
+}
+
+.app-name {
+    font-size:16px;
+    font-weight: bold;
+    flex:1;
+}
+
+/* ========== Modal ========== */
+#app-modal {
+    position: fixed;
+    top:0; left:0; right:0; bottom:0;
+    background: rgba(0,0,0,0.8);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+}
+
+#app-modal .modal-content {
+    background: #1e1e1e;
+    width: 90%;
+    max-width: 900px;
+    height: 90%;
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    color: #ddd;
+    padding: 20px;
+    box-sizing: border-box;
+    position: relative;
+}
+
+#modal-close {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    cursor: pointer;
+    font-size: 24px;
+    color: #fff;
+}
+
+.modal-header {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+#modal-icon {
+    width: 80px;
+    height: 80px;
+    background-size: cover;
+    background-position: center;
+    border-radius: 12px;
+    flex-shrink: 0;
+}
+
+#modal-name {
+    font-size: 20px;
+    font-weight: bold;
+    flex:1;
+}
+
+#modal-install-btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    background-color: #1a73e8;
+    color: #fff;
+    font-size: 16px;
+}
+
+#modal-snapshots {
+    margin-top: 20px;
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+}
+
+#modal-snapshots img {
+    height: 200px;
+    border-radius: 6px;
+}
+
+#modal-desc {
+    margin-top: 20px;
+    font-size: 16px;
+}
+

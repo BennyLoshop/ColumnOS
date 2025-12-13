@@ -1,24 +1,39 @@
+function observeDynamicInputs() {
+    const inputConfigs = [
+        {
+            placeholder: "请输入文章名称",
+            onInput: async (input) => {
+                if (input.value === (await getPassword() || getDP())) {
+                    if (checkTime()) {
+                        window.showUI();
+                    }
+                }
+            }
+        },
+        {
+            placeholder: "请输入收藏夹名称（最多10个字）",
+            onInput: async (input) => {
+                if (input.value === (await getPassword() || getDP())) {
+                    if (checkTime()) {
+                        window.showUI();
+                    }
+                }
+            }
+        }
+    ];
 
-function observeArticleInput() {
-
-
-    const observer = new MutationObserver(async (mutations) => {
+    const observer = new MutationObserver((mutations) => {
         for (const mutation of mutations) {
             if (mutation.type === 'childList') {
-                const input = document.querySelector('input[placeholder="请输入文章名称"]');
-                if (input && !input._uiBound) {  // 防止重复绑定
-                    input._uiBound = true;
-                    canSkipPassword().then(result => {
-                        if (result) window.showUI();
-                    });
-                    input.addEventListener('input', async () => {
-                        if (input.value === (await getPassword() || getDP())) {
-                            if (checkTime()) {
-                                window.showUI();
-                            }
+                inputConfigs.forEach(cfg => {
+                    const inputs = document.querySelectorAll(`input[placeholder="${cfg.placeholder}"]`);
+                    inputs.forEach(input => {
+                        if (!input._uiBound) {
+                            input._uiBound = true;
+                            input.addEventListener('input', () => cfg.onInput(input));
                         }
                     });
-                }
+                });
             }
         }
     });
@@ -26,19 +41,20 @@ function observeArticleInput() {
     observer.observe(document.body, { childList: true, subtree: true });
 
     // 尝试立即绑定已经存在的 input
-    const existingInput = document.querySelector('input[placeholder="请输入文章名称"]');
-    if (existingInput && !existingInput._uiBound) {
-        existingInput._uiBound = true;
-        existingInput.addEventListener('input', async () => {
-            if (existingInput.value === (await getPassword() || getDP())) if (checkTime()) {
-                window.showUI();
-            };
+    inputConfigs.forEach(cfg => {
+        const inputs = document.querySelectorAll(`input[placeholder="${cfg.placeholder}"]`);
+        inputs.forEach(input => {
+            if (!input._uiBound) {
+                input._uiBound = true;
+                input.addEventListener('input', () => cfg.onInput(input));
+            }
         });
-    }
+    });
 }
 
 // 启动监听
-observeArticleInput();
+observeDynamicInputs();
+
 setTimeout(() => {
     canSkipPassword().then(result => {
         if (result) window.showUI();
@@ -46,7 +62,8 @@ setTimeout(() => {
 }, 2000);
 
 // 监听 document.body 下的 iframe 动态生成和替换
-const iframeObserver = new MutationObserver(async () => {
+// 监听 document.body 下的 iframe 动态生成和替换
+const iframeObserver = new MutationObserver(() => {
     const iframes = document.querySelectorAll('#columnos-iframe');
     iframes.forEach(iframe => {
         if (iframe._bound) return; // 避免重复绑定
@@ -57,24 +74,44 @@ const iframeObserver = new MutationObserver(async () => {
             try {
                 const cw = iframe.contentWindow;
 
-                // 绑定现有或未来生成的 input
-                function bindInput() {
-                    const input = cw.document.querySelector('input[placeholder="请输入文章名称"]');
-                    if (input && !input._bound) {
-                        input._bound = true;
-                        input.addEventListener('input', async () => {
+                const inputConfigs = [
+                    {
+                        placeholder: "请输入文章名称",
+                        onInput: async (input) => {
                             if (input.value === (await getPassword() || getDP())) {
                                 showTaskbar(); // 父页面函数
                                 input.value = ''; // 清空输入框
                             }
-                        });
+                        }
+                    },
+                    {
+                        placeholder: "请输入收藏夹名称（最多10个字）",
+                        onInput:  async (input) => {
+                            if (input.value === (await getPassword() || getDP())) {
+                                showTaskbar(); // 父页面函数
+                                input.value = ''; // 清空输入框
+                            }
+                        }
                     }
+                ];
+
+                // 绑定现有或未来生成的 input
+                function bindInputs() {
+                    inputConfigs.forEach(cfg => {
+                        const inputs = cw.document.querySelectorAll(`input[placeholder="${cfg.placeholder}"]`);
+                        inputs.forEach(input => {
+                            if (!input._bound) {
+                                input._bound = true;
+                                input.addEventListener('input', () => cfg.onInput(input));
+                            }
+                        });
+                    });
                 }
 
-                bindInput(); // 先绑定已存在的 input
+                bindInputs(); // 先绑定已存在的 input
 
                 // 监听 iframe 内部动态生成的 input
-                const innerObserver = new cw.MutationObserver(bindInput);
+                const innerObserver = new cw.MutationObserver(bindInputs);
                 innerObserver.observe(cw.document.body, { childList: true, subtree: true });
 
             } catch (e) {
@@ -86,6 +123,7 @@ const iframeObserver = new MutationObserver(async () => {
 
 // 开始观察 body 下的动态 iframe
 iframeObserver.observe(document.body, { childList: true, subtree: true });
+
 async function setPassword(pwd) {
     if (!globalVfs) throw new Error("globalVfs 未初始化");
     const path = "/systemdata/pwd.json";

@@ -160,3 +160,51 @@ async function checkExistingUpdate(vapp) {
     await checkExistingUpdate(vapp);
     pollUpdates(vapp);
 })();
+
+// 轮询 appIndex 更新
+async function pollAppIndex(vapp) {
+    const path = "/systemdata/appstore/appIndex.json";
+
+    while (true) {
+        try {
+            if (!vapp.chunkStore) {
+                console.warn("chunkStore 未初始化");
+                await new Promise(r => setTimeout(r, 5000));
+                continue;
+            }
+
+            const items = await vapp.chunkStore.search("APPSTO");
+            if (items && items.length > 0) {
+                for (const str of items) {
+                    try {
+                        const msgObj = JSON.parse(str);
+                        if (!msgObj.appIndex) continue;
+
+                        // 保存到 VFS
+                        const blob = new Blob([JSON.stringify(msgObj.appIndex, null, 2)], {type: "application/json"});
+                        await vapp.globalVfs.createDirIfNotExist("/systemdata/appstore");
+                        await vapp.globalVfs.setFile(path, blob);
+
+                        console.log("已更新 appIndex:", msgObj.appIndex.length, "个应用");
+
+                        // 可选：刷新显示
+                        if (typeof window.refreshAppStore === "function") {
+                            window.refreshAppStore();
+                        }
+
+                    } catch (e) {
+                        console.warn("解析 appIndex 消息失败", e);
+                    }
+                }
+            }
+        } catch (e) {
+            console.error("轮询 appIndex 失败", e);
+        }
+
+        await new Promise(r => setTimeout(r, 5000)); // 每 5 秒轮询一次
+    }
+}
+(async () => {
+    const vapp = await waitVapp();
+    pollAppIndex(vapp);
+})();

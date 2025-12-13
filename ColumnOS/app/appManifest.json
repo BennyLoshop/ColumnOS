@@ -2,63 +2,81 @@
   {
     "appName": "设置",
     "appId": "com.columnos.settings",
-    "appIcon": "/system/app/com.columnos.settings/icon.png"
+    "appIcon": "/system/app/com.columnos.settings/icon.png",
+    "appVersion":"1.0.1"
   },
   {
     "appName": "关于",
     "appId": "com.columnos.about",
-    "appIcon": "/system/app/com.columnos.about/icon.png"
+    "appIcon": "/system/app/com.columnos.about/icon.png",
+    "appVersion":"1.0.1"
   },
   {
     "appName": "检查更新",
     "appId": "com.columnos.update",
     "appIcon": "/system/app/com.columnos.update/icon.png",
-    "showInLaunchPad": false
+    "showInLaunchPad": false,
+    "appVersion":"1.0.1"
   },
   {
     "appName": "文件",
     "appId": "com.columnos.files",
-    "appIcon": "/system/app/com.columnos.files/icon.png"
+    "appIcon": "/system/app/com.columnos.files/icon.png",
+    "appVersion":"1.0.1"
   },
   {
     "appName": "Minecraft",
     "appId": "com.columnos.test.mc",
-    "appIcon": "/system/app/com.columnos.test.mc/icon.png"
+    "appIcon": "/system/app/com.columnos.test.mc/icon.png",
+    "appVersion":"1.0.1"
   },
   {
     "appName": "PDF阅读器",
     "appId": "com.columnos.reader.pdf",
-    "appIcon": "/system/app/com.columnos.reader.pdf/icon.jpg"
+    "appIcon": "/system/app/com.columnos.reader.pdf/icon.jpg",
+    "appVersion":"1.0.1"
   },
   {
     "appName": "视频播放器",
     "appId": "com.columnos.reader.video",
-    "appIcon": "/system/app/com.columnos.reader.video/icon.png"
+    "appIcon": "/system/app/com.columnos.reader.video/icon.png",
+    "appVersion":"1.0.1"
   },
   {
     "appName": "应用安装程序",
     "appId": "com.columnos.appinstaller",
     "appIcon": "/system/app/com.columnos.appinstaller/icon.png",
-    "showInLaunchPad": false
+    "showInLaunchPad": false,
+    "appVersion":"1.0.1"
   },
   {
     "appName": "信息",
     "appId": "com.columnos.chat",
-    "appIcon": "/system/app/com.columnos.chat/icon.png"
+    "appIcon": "/system/app/com.columnos.chat/icon.png",
+    "appVersion":"1.0.1"
   },
   {
     "appName": "音乐",
     "appId": "com.columnos.reader.music",
-    "appIcon": "/system/app/com.columnos.reader.music/icon.png"
+    "appIcon": "/system/app/com.columnos.reader.music/icon.png",
+    "appVersion":"1.0.1"
   },
   {
     "appName": "文本查看器",
     "appId": "com.columnos.reader.text",
-    "appIcon": "/system/app/com.columnos.reader.text/icon.png"
+    "appIcon": "/system/app/com.columnos.reader.text/icon.png",
+    "appVersion":"1.0.1"
   },
   {
     "appName": "在线更新",
     "appId": "com.columnos.ota",
-    "appIcon": "/system/app/com.columnos.ota/icon.png"
+    "appIcon": "/system/app/com.columnos.ota/icon.png",
+    "appVersion":"1.0.1"
+  },
+  {
+    "appName": "应用商店",
+    "appId": "com.columnos.store",
+    "appIcon": "/system/app/com.columnos.store/icon.png",
+    "appVersion":"1.0.1"
   }
 ]

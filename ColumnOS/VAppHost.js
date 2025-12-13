@@ -481,6 +481,7 @@ async function getAppList() {
         const text = await systemManifestBlob.text();
         try { systemApps = JSON.parse(text); } catch (e) { console.error(e); }
     }
+
     if (systemDataBlob) {
         const text = await systemDataBlob.text();
         try { userApps = JSON.parse(text); } catch (e) { console.error(e); }
@@ -488,8 +489,11 @@ async function getAppList() {
 
     const systemAppsWithFlag = await Promise.all(systemApps.map(async app => {
         let iconBlob = null;
+
         if (app.appIcon) {
-            const path = app.appIcon.startsWith("/") ? app.appIcon : `/app/${app.appId}/${app.appIcon}`;
+            const path = app.appIcon.startsWith("/")
+                ? app.appIcon
+                : `/app/${app.appId}/${app.appIcon}`;
             try {
                 const blob = await window.globalVfs.getFile(path);
                 if (blob) iconBlob = blob;
@@ -497,18 +501,24 @@ async function getAppList() {
                 console.warn(`获取图标失败: ${path}`, e);
             }
         }
+
         return {
             name: app.appName,
             id: app.appId,
+            version: app.appVersion || "0.0.0",   // ✅ appVersion
             icon: iconBlob || app.appIcon,
-            showInLaunchPad: app.showInLaunchPad !== undefined ? app.showInLaunchPad : true
+            showInLaunchPad:
+                app.showInLaunchPad !== undefined ? app.showInLaunchPad : true
         };
     }));
 
     const userAppsWithFlag = await Promise.all(userApps.map(async app => {
         let iconBlob = null;
+
         if (app.appIcon) {
-            const path = app.appIcon.startsWith("/") ? app.appIcon : `/app/${app.appId}/${app.appIcon}`;
+            const path = app.appIcon.startsWith("/")
+                ? app.appIcon
+                : `/app/${app.appId}/${app.appIcon}`;
             try {
                 const blob = await window.globalVfs.getFile(path);
                 if (blob) iconBlob = blob;
@@ -516,25 +526,40 @@ async function getAppList() {
                 console.warn(`获取图标失败: ${path}`, e);
             }
         }
+
         return {
             name: app.appName,
             id: app.appId,
+            version: app.appVersion || "0.0.0",   // ✅ appVersion
             icon: iconBlob || app.appIcon,
-            showInLaunchPad: true // 用户应用固定 true
+            showInLaunchPad: true                 // 用户应用固定 true
         };
     }));
 
     return [...systemAppsWithFlag, ...userAppsWithFlag];
 }
 
+
 async function installApp(manifestPath) {
     const manifestBlob = await window.globalVfs.getFile(manifestPath);
-    if (!manifestBlob) throw new Error("Manifest not found: " + manifestPath);
+    if (!manifestBlob) {
+        throw new Error("Manifest not found: " + manifestPath);
+    }
 
     const text = await manifestBlob.text();
     let app;
-    try { app = JSON.parse(text); } catch (e) { throw new Error("Invalid JSON in manifest"); }
+    try {
+        app = JSON.parse(text);
+    } catch (e) {
+        throw new Error("Invalid JSON in manifest");
+    }
 
+    // ✅ appVersion 兜底
+    if (!app.appVersion) {
+        app.appVersion = "0.0.0";
+    }
+
+    // 统一 icon 路径
     if (app.appIcon && typeof app.appIcon === "string") {
         const fileName = app.appIcon.split('/').pop();
         app.appIcon = `/app/${app.appId}/${fileName}`;
@@ -542,20 +567,48 @@ async function installApp(manifestPath) {
 
     let systemDataApps = [];
     const dataBlob = await ensureSystemDataManifest();
+
     if (dataBlob) {
         try {
             const dataText = await dataBlob.text();
             systemDataApps = JSON.parse(dataText);
-        } catch (e) { console.error(e); }
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    // 版本比较函数
+    function compareVersion(a, b) {
+        const pa = a.split('.').map(Number);
+        const pb = b.split('.').map(Number);
+        for (let i = 0; i < 3; i++) {
+            const diff = (pa[i] || 0) - (pb[i] || 0);
+            if (diff !== 0) return diff;
+        }
+        return 0;
     }
 
     const existingIndex = systemDataApps.findIndex(a => a.appId === app.appId);
+
     if (existingIndex >= 0) {
+        const oldApp = systemDataApps[existingIndex];
+
+        // ✅ 防止版本回退
+        if (compareVersion(app.appVersion, oldApp.appVersion || "0.0.0") < 0) {
+            throw new Error(
+                `拒绝安装低版本：${oldApp.appVersion} → ${app.appVersion}`
+            );
+        }
+
         systemDataApps[existingIndex] = app;
     } else {
         systemDataApps.push(app);
     }
 
-    const newBlob = new Blob([JSON.stringify(systemDataApps, null, 2)], { type: "application/json" });
+    const newBlob = new Blob(
+        [JSON.stringify(systemDataApps, null, 2)],
+        { type: "application/json" }
+    );
+
     await window.globalVfs.setFile("/systemdata/appManifest.json", newBlob);
 }

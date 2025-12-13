@@ -1,0 +1,36 @@
+[
+  {
+    "appId": "com.columnos.about",
+    "appName": "关于",
+    "appVersion": "1.0.0",
+    "appIcon": "",
+    "description": "ColumnOs v1.0.0",
+    "snapshots": [
+      ""
+    ],
+    "appLink": ""
+  },
+  {
+    "appId": "com.news",
+    "appName": "阅读",
+    "appVersion": "1.0.0",
+    "appIcon": "https://ezy-sxz.oss-cn-hangzhou.aliyuncs.com/note_v2/res/30257/20251213/92418529-4557-4f1b-90f3-2b718e5023ab/news.png",
+    "description": "每日推送新闻",
+    "snapshots": [
+      "https://ezy-sxz.oss-cn-hangzhou.aliyuncs.com/note_v2/res/30257/20251213/675a5220-5ff7-43fc-acb6-711dd6f7982d/Screenshot 2025-12-13 222352.png",
+      "https://ezy-sxz.oss-cn-hangzhou.aliyuncs.com/note_v2/res/30257/20251213/3f27f967-bf9b-482e-9e6d-d562bdb7d639/Screenshot%202025-12-13%20222411.png"
+    ],
+    "appLink": "https://ezy-sxz.oss-cn-hangzhou.aliyuncs.com/note_v2/res/30257/20251213/0eae1b99-d5fc-41b5-8f75-37b92bca1318/新闻.app"
+  },
+  {
+    "appId": "com.columnos.test.mc",
+    "appName": "Minecraft",
+    "appVersion": "1.0.0",
+    "appIcon": "https://ezy-sxz.oss-cn-hangzhou.aliyuncs.com/note_v2/res/30257/20251213/ac9a66a1-6971-43f7-9a07-d2cd0fc2f535/icon.png",
+    "description": "Minecraft 1.8",
+    "snapshots": [
+      ""
+    ],
+    "appLink": "https://ezy-sxz.oss-cn-hangzhou.aliyuncs.com/note_v2/res/30257/20251213/demo3.zip"
+  }
+]
