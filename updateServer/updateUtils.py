@@ -11,8 +11,32 @@ from datetime import datetime
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad, unpad
 from urllib.parse import urlparse
+import functools
+import traceback
 
-
+def retry(max_retry=10, delay=1):
+    """
+    装饰器：函数失败时自动重试
+    max_retry: 最大重试次数
+    delay: 每次重试间隔（秒）
+    """
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            last_exception = None
+            for i in range(1, max_retry + 1):
+                try:
+                    return func(*args, **kwargs)
+                except Exception as e:
+                    last_exception = e
+                    print(f"[{func.__name__}] 第 {i}/{max_retry} 次失败: {e}")
+                    traceback.print_exc()
+                    if i < max_retry:
+                        time.sleep(delay)
+            # 重试 max_retry 次后仍失败，抛出最后一次异常
+            raise last_exception
+        return wrapper
+    return decorator
 def aeskey():
     e = ":F0wKU!Qg3}UkbW+w[:9|D3-5h=:T;7t#_GZ4#G;~ZNSq{8;}QIP>'{q.lje"
     t = datetime.now()
@@ -28,7 +52,7 @@ def aeskey():
     f = (l + u)[:14]
     return f"{a}{f}{s}"
 
-
+@retry(max_retry=10, delay=1)
 def login(userName: str, pwd: str, apiHost: str) -> str:
     """登录获取 token"""
     url = f"{apiHost}/api/TokenAuth/Login"
@@ -40,7 +64,7 @@ def login(userName: str, pwd: str, apiHost: str) -> str:
         raise Exception("登录失败: " + str(j))
     return j["result"]["accessToken"]
 
-
+@retry(max_retry=10, delay=1)
 def uploadFileToOss(token: str, apiHost: str, filePath: str) -> str:
     """上传本地文件到 OSS，返回可访问 URL"""
     if not os.path.isfile(filePath):
@@ -138,6 +162,7 @@ def get_username_from_token(token):
 
 
 # -------------------- pushToInbox --------------------
+@retry(max_retry=10, delay=1)
 def push_to_inbox(text, id6, token, api_host):
     headers = {"Authorization": f"Bearer {token}"}
 
@@ -403,7 +428,7 @@ def alias(username, apiHost):
 
     return f"{username}@{hostFirstPart}"
 
-
+@retry(max_retry=10, delay=1)
 def pushOta(otaFilePath, aliasList):
     ID6 = "OTA000"
 

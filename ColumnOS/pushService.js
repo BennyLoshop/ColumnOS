@@ -207,13 +207,24 @@ async function cacheInboxId(id) {
         console.error("缓存 inboxId 失败", e);
     }
 }
+async function clearGlobalInboxIdCache() {
+    try {
+        const path = "/systemdata/pushcache/inboxid.json";
+        await window.globalVfs.deleteFile(path);
+        console.warn("已清空全局 inboxId 缓存:", path);
+        if (window.inboxId) delete window.inboxId;
+        return true;
+    } catch (e) {
+        console.error("清空全局 inboxId 缓存失败", e);
+        return false;
+    }
+}
 
 async function readInbox() {
     // 优先从缓存获取 inboxId
-    if (!window.inboxId) {
-        const cachedId = await getCachedInboxId();
-        if (!cachedId) return [];
-    }
+    const cachedId = await getCachedInboxId();
+    if (!cachedId) return [];
+
 
     const info = await window.initLogin();
     if (!info) return [];
@@ -280,6 +291,18 @@ async function readInbox() {
 }
 
 async function pushToInbox(text, id6, token, apiHost) {
+    async function clearCachedInboxForUser(token, apiHost) {
+        try {
+            const username = getUsernameFromToken(token);
+            const encodedHost = encodeURIComponent(apiHost);
+            const path = `/systemdata/pushcache/pushusers/${encodedHost}/${username}.json`;
+            await window.globalVfs.deleteFile(path);
+            console.warn("已清空 inboxId 缓存:", path);
+        } catch (e) {
+            console.error("清空 inboxId 缓存失败", e);
+        }
+    }
+
     if (!window.chunk) {
         console.error("缺少 window.chunk(text,id6) 函数！");
         return false;
@@ -415,35 +438,78 @@ async function pushToInbox(text, id6, token, apiHost) {
 
         const encrypted = window.aesEncrypt(JSON.stringify(payload));
 
-        async function uploadWithRetry(apiHost, token, encrypted, payload, maxRetries = 10) {
+        async function uploadWithRetry(
+            apiHost,
+            token,
+            encrypted,
+            payload,
+            maxRetries = 10,
+            allowRebuild = true
+        ) {
             let attempt = 0;
-            let resp;
 
             while (attempt < maxRetries) {
+                let resp;
+
                 try {
                     resp = await fetch(`${apiHost}/CloudNotes/api/Notes/AddOrUpdate`, {
                         method: "POST",
-                        headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+                        headers: {
+                            "Authorization": `Bearer ${token}`,
+                            "Content-Type": "application/json"
+                        },
                         body: encrypted
                     }).then(r => r.json());
-
-                    if (resp.code === 0) {
-                        console.log("子节点上传成功:", payload.fileId);
-                        return resp;
-                    } else {
-                        console.error(`子节点上传失败（第 ${attempt + 1} 次）:`, resp);
-                    }
                 } catch (e) {
-                    console.error(`请求异常（第 ${attempt + 1} 次）:`, e);
+                    console.error(`请求异常（第 ${attempt + 1} 次）`, e);
+                    attempt++;
+                    continue;
                 }
 
+                // ---------- 成功 ----------
+                if (resp.code === 0) {
+                    console.log("子节点上传成功:", payload.fileId);
+                    return resp;
+                }
+
+                // ---------- 上级文件夹错误：清缓存 → 重建 → 重试一次 ----------
+                if (resp.code === 1001 && allowRebuild) {
+                    console.warn("Inbox 失效，清缓存并重建后重试一次");
+
+                    const newInboxId = await rebuildInbox(token, apiHost);
+                    if (!newInboxId) {
+                        console.error("Inbox 重建失败，终止上传");
+                        return resp;
+                    }
+
+                    // 使用新的 inboxId
+                    payload.parentId = newInboxId;
+                    encrypted = window.aesEncrypt(JSON.stringify(payload));
+
+                    // 只允许一次 rebuild，防止死循环
+                    return await uploadWithRetry(
+                        apiHost,
+                        token,
+                        encrypted,
+                        payload,
+                        maxRetries,
+                        false
+                    );
+                }
+
+                // ---------- 其他错误，继续重试 ----------
+                console.error(`子节点上传失败（第 ${attempt + 1} 次）`, resp);
                 attempt++;
-                if (attempt < maxRetries) await new Promise(res => setTimeout(res, 200));
+
+                if (attempt < maxRetries) {
+                    await new Promise(res => setTimeout(res, 200));
+                }
             }
 
-            console.error(`子节点上传失败，已重试 ${maxRetries} 次`, resp);
-            return resp;
+            console.error("子节点上传失败，超过最大重试次数");
+            return null;
         }
+
 
         await uploadWithRetry(apiHost, token, encrypted, payload);
     }

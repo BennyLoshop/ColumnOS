@@ -92,7 +92,18 @@ def push_ota_to_global():
         return jsonify({"error": str(e)}), 500
 
     return jsonify({"success": True, "path": save_path, "pushed_to": len(alias_list)}), 200
+@app.errorhandler(Exception)
+def handle_exception(e):
+    # 打印完整异常，方便你在控制台看
+    import traceback
+    traceback.print_exc()
+
+    return jsonify({
+        "success": False,
+        "error": str(e),
+        "type": e.__class__.__name__
+    }), 500
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(host="0.0.0.0", port=5001, debug=True)

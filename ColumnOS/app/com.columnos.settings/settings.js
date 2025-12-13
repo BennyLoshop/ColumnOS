@@ -224,6 +224,21 @@ async function initSettingsPage() {
         slider.className = "slider";
         toggle.appendChild(slider);
 
+        // ---------- 重新获取推送参数按钮 ----------
+        const btnRow = document.createElement('div');
+        btnRow.className = "setting-row";
+        card.appendChild(btnRow);
+
+        const btnLabel = document.createElement('span');
+        btnLabel.className = "setting-label";
+        btnLabel.textContent = "重新获取推送参数";
+        btnRow.appendChild(btnLabel);
+
+        const btn = document.createElement('button');
+        btn.textContent = "重新获取";
+        btnRow.appendChild(btn);
+
+
         // 读取当前设置
         let pushSettings = { push: true };
         try {
@@ -250,6 +265,24 @@ async function initSettingsPage() {
                 console.error("保存 pushsettings.json 失败:", err);
             }
         });
+
+        btn.addEventListener('click', async e => {
+            e.stopPropagation();
+
+            try {
+                const target = window.parent ?? window.opener ?? null;
+                if (target && typeof target.clearGlobalInboxIdCache === "function") {
+                    await target.clearGlobalInboxIdCache();
+                    alert("推送参数已重置，下次将重新获取");
+                } else {
+                    alert("父窗口未提供 clearGlobalInboxIdCache()");
+                }
+            } catch (err) {
+                console.error("重新获取推送参数失败", err);
+                alert("重置失败，请查看控制台");
+            }
+        });
+
 
         // 整行点击切换，排除点击 switch 内部
         row.addEventListener('click', e => {

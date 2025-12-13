@@ -46,6 +46,22 @@
             width: 100%;
             height: 100px;
         }
+
+        #log {
+            margin-top: 10px;
+        }
+
+        .info {
+            color: #ffcc00;
+        }
+
+        .success {
+            color: #4caf50;
+        }
+
+        .error {
+            color: #f44336;
+        }
     </style>
 </head>
 
@@ -55,25 +71,38 @@
         <form id="ota-form" enctype="multipart/form-data">
             <input type="file" name="file" id="ota-file" required>
             <select id="alias-select" multiple></select>
-            <button type="submit">推送 OTA</button>
+            <button type="submit" id="submit-btn">推送 OTA</button>
         </form>
         <div id="log"></div>
     </div>
 
     <script>
-        function log(msg) { document.getElementById('log').innerHTML += msg + "<br>"; }
+        const logEl = document.getElementById('log');
+        const submitBtn = document.getElementById('submit-btn');
+
+        function log(msg, type = 'info') {
+            const div = document.createElement('div');
+            div.textContent = msg;
+            div.className = type;
+            logEl.appendChild(div);
+            logEl.scrollTop = logEl.scrollHeight;
+        }
 
         async function loadAliases() {
-            const resp = await fetch('/users');
-            const data = await resp.json();
-            const select = document.getElementById('alias-select');
-            select.innerHTML = "";
-            data.forEach(u => {
-                const opt = document.createElement('option');
-                opt.value = u.alias;
-                opt.textContent = u.alias;
-                select.appendChild(opt);
-            });
+            try {
+                const resp = await fetch('/users');
+                const data = await resp.json();
+                const select = document.getElementById('alias-select');
+                select.innerHTML = "";
+                data.forEach(u => {
+                    const opt = document.createElement('option');
+                    opt.value = u.alias;
+                    opt.textContent = u.alias;
+                    select.appendChild(opt);
+                });
+            } catch (err) {
+                log('加载 alias 失败: ' + err.message, 'error');
+            }
         }
 
         document.getElementById('ota-form').onsubmit = async e => {
@@ -81,12 +110,39 @@
             const fileInput = document.getElementById('ota-file');
             const select = document.getElementById('alias-select');
             const aliases = Array.from(select.selectedOptions).map(o => o.value);
+
+            if (!fileInput.files[0]) {
+                log('请选择文件', 'error');
+                return;
+            }
+            if (aliases.length === 0) {
+                log('请选择至少一个 alias', 'error');
+                return;
+            }
+
             const formData = new FormData();
             formData.append('file', fileInput.files[0]);
             aliases.forEach(a => formData.append('alias', a));
-            const resp = await fetch('/push_ota', { method: 'POST', body: formData });
-            const data = await resp.json();
-            log(data.success ? 'OTA推送成功' : '失败: ' + data.error);
+
+            // 显示推送中，并禁用按钮
+            submitBtn.disabled = true;
+            submitBtn.textContent = '推送中...';
+            log('正在推送 OTA...', 'info');
+
+            try {
+                const resp = await fetch('/push_ota', { method: 'POST', body: formData });
+                const data = await resp.json();
+                if (data.success) {
+                    log('OTA 推送成功', 'success');
+                } else {
+                    log('OTA 推送失败: ' + data.error, 'error');
+                }
+            } catch (err) {
+                log('请求失败: ' + err.message, 'error');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = '推送 OTA';
+            }
         };
 
         loadAliases();
