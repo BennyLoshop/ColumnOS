@@ -118,6 +118,70 @@
     const chatTitle = document.getElementById("chat-title");
     const messagesEl = document.getElementById("messages");
     const inputMessage = document.getElementById("message-input");
+    const nickModal = document.getElementById("nick-modal");
+    const nickInput = document.getElementById("nick-input");
+    const nickSaveBtn = document.getElementById("nick-save-btn");
+    const nickCancelBtn = document.getElementById("nick-cancel-btn");
+    const userNickText = document.getElementById("user-nick");
+    const editNickBtn = document.getElementById("edit-nick-btn");
+    const addContactModal = document.getElementById("add-contact-modal");
+    const addContactBtn = document.getElementById("add-contact-btn");
+    const addContactCancelBtn = document.getElementById("add-contact-cancel-btn");
+    const addContactSaveBtn = document.getElementById("add-contact-save-btn");
+    const inputUsername = document.getElementById("contact-username");
+    const inputApiHost = document.getElementById("contact-apihost");
+    const inputPassword = document.getElementById("contact-password");
+
+    addContactBtn.onclick = () => {
+        inputUsername.value = "";
+        inputApiHost.value = "http://sxz.api.zykj.org";
+        inputPassword.value = "";
+        addContactModal.style.display = "flex";
+    };
+
+    addContactCancelBtn.onclick = () => addContactModal.style.display = "none";
+
+    addContactSaveBtn.onclick = async () => {
+        const username = inputUsername.value.trim();
+        const password = inputPassword.value.trim();
+        const apiHost = inputApiHost.value.trim();
+        if (!username || !password || !apiHost) return alert("请填写完整信息");
+
+        const hostFirstPart = apiHost.split("/")[2]?.split(".")[0] || apiHost;
+        const alias = `${username}@${hostFirstPart}`;
+
+        await window.vapp.tokenStore.updateUser(username, password, apiHost, alias);
+        await chatSessions.add(alias);
+
+        const myNick = await userNick.getNick(window.userAlias);
+        await sendCfgUpdate(alias, myNick);
+
+        await refreshContacts();
+        addContactModal.style.display = "none";
+    };
+
+
+    editNickBtn.onclick = async () => {
+        nickInput.value = userNickText.textContent;
+        nickModal.style.display = "flex";
+    };
+
+    nickCancelBtn.onclick = () => nickModal.style.display = "none";
+
+    nickSaveBtn.onclick = async () => {
+        const newNick = nickInput.value.trim();
+        if (!newNick) return;
+
+        await userNick.setNick(window.userAlias, newNick);
+
+        const aliases = await chatSessions.list();
+        for (const alias of aliases) await sendCfgUpdate(alias, newNick);
+
+        userNickText.textContent = newNick;
+        await refreshContacts();
+
+        nickModal.style.display = "none";
+    };
 
     let currentAlias = null;
     let currentChatLog = null;
@@ -215,54 +279,35 @@
     async function refreshContacts() {
         const aliases = await chatSessions.list();
         contactsEl.innerHTML = "";
-        aliases.forEach(alias => {
+        for (const alias of aliases) {
             const li = document.createElement("li");
-            const [username, hostPart] = alias.split("@");
-
-            li.innerHTML = `${username} <span class="alias-badge">@${hostPart}</span>`;
+            const nick = await userNick.getNick(alias);
+            const hostPart = alias.split("@")[1] || alias;
+            li.innerHTML = `${nick} <span class="alias-badge">@${hostPart}</span>`;
             li.onclick = () => { selectContact(alias); };
             if (alias === currentAlias) li.classList.add("active");
             contactsEl.appendChild(li);
-        });
+        }
     }
+
 
     async function selectContact(alias) {
         currentAlias = alias;
-        const [username, hostPart] = alias.split("@");
-        chatTitle.innerHTML = `聊天: ${username} <span class="alias-badge">@${hostPart}</span>`;
+        const nick = await userNick.getNick(alias);
+        const hostPart = alias.split("@")[1] || alias;
+        chatTitle.innerHTML = `聊天: ${nick} <span class="alias-badge">@${hostPart}</span>`;
 
         messagesEl.innerHTML = "";
         currentChatLog = new ChatLog(vfs, alias);
-        await currentChatLog.load();
-
         renderedIndex = null;
         await renderMessagesLazy();
 
         await refreshContacts();
 
-        if (!polling) {
-            polling = true;
-            pollMessages();
-        }
+        if (!polling) { polling = true; pollMessages(); }
     }
 
-    // -------------------- 添加联系人 --------------------
-    async function addContactHandler() {
-        const username = document.getElementById("new-username").value.trim();
-        const password = document.getElementById("new-password").value.trim();
-        const apiHost = document.getElementById("new-apihost").value.trim();
-        if (!username || !password || !apiHost) return alert("请填写完整信息");
 
-        const hostFirstPart = apiHost.split("/")[2]?.split(".")[0] || apiHost;
-        const alias = `${username}@${hostFirstPart}`;
-
-        await window.vapp.tokenStore.updateUser(username, password, apiHost, alias);
-        await chatSessions.add(alias);
-        await refreshContacts();
-        alert("联系人添加成功");
-    }
-
-    document.getElementById("add-contact").onclick = addContactHandler;
 
     // -------------------- 发送消息 --------------------
     async function sendMessage() {
@@ -285,6 +330,7 @@
         }
 
         const msgObj = {
+            type: "msg",
             from: window.userAlias,
             session: "single",
             msg: text
@@ -319,6 +365,55 @@
         }
     }
 
+    class UserNick {
+        constructor(vfs, path = "/data/com.columnos.chat/userNickName.json") {
+            this.vfs = vfs;
+            this.path = path;
+            this.nickMap = {};  // alias -> nickname
+            this.loaded = false;
+        }
+
+        async load() {
+            if (this.loaded) return;
+            const blob = await this.vfs.getFile(this.path);
+            if (blob) {
+                try { this.nickMap = JSON.parse(await blob.text()); }
+                catch (e) { this.nickMap = {}; }
+            }
+            this.loaded = true;
+        }
+
+        async save() {
+            const blob = new Blob([JSON.stringify(this.nickMap, null, 2)], { type: "application/json" });
+            await this.vfs.setFile(this.path, blob);
+        }
+
+        async setNick(alias, nickname) {
+            await this.load();
+            this.nickMap[alias] = nickname;
+            await this.save();
+        }
+
+        async getNick(alias) {
+            await this.load();
+            return this.nickMap[alias] || alias;
+        }
+    }
+
+    const userNick = new UserNick(vfs);
+
+    async function sendCfgUpdate(targetAlias, nickname) {
+        const msgObj = {
+            type: "cfg_update",
+            from: window.userAlias,
+            cfg_nickName: nickname
+        };
+        const id6 = "MSG001";
+        const token = await window.vapp.tokenStore.getTokenByAlias(targetAlias);
+        const apiHost = await window.vapp.tokenStore.getApiHostByAlias(targetAlias);
+        if (!token || !apiHost) return;
+        try { await vapp.pushToInbox(JSON.stringify(msgObj), id6, token, apiHost); } catch (e) { console.warn("发送cfg失败", targetAlias, e); }
+    }
     document.getElementById("send-message").onclick = sendMessage;
 
     // -------------------- 消息轮询 --------------------
@@ -327,6 +422,7 @@
             try {
                 const id6 = "MSG001";
                 const items = await window.vapp.chunkStore.search(id6);
+                console.log("轮询到消息:", items);
 
                 if (items && items.length) {
                     for (const str of items) {
@@ -334,6 +430,17 @@
                             const msgObj = JSON.parse(str);
 
                             if (!msgObj.from) continue;
+                            console.log("处理消息来自:", msgObj.from);
+                            console.log("当前聊天对象:", currentAlias);
+                            console.log("消息内容:", msgObj);
+                            console.log("消息类型:", msgObj.type);
+
+                            if (msgObj.type === "cfg_update" && msgObj.cfg_nickName) {
+                                await userNick.setNick(msgObj.from, msgObj.cfg_nickName);
+                                console.log("收到昵称更新:", msgObj.from, msgObj.cfg_nickName);
+                                if (msgObj.from === currentAlias) await refreshContacts();
+                                continue;
+                            }
 
                             const allAliases = await chatSessions.list();
                             if (!allAliases.includes(msgObj.from)) continue;
@@ -367,5 +474,11 @@
         }
     }
 
+
+
     await refreshContacts();
+    if (!polling) { polling = true; pollMessages(); }
+    const nick = await userNick.getNick(window.userAlias);
+    // 如果没有设置过昵称，显示默认 alias
+    document.getElementById("user-nick").textContent = nick || window.userAlias;
 })();

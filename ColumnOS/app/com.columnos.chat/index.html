@@ -1,22 +1,32 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ColumnOS Chat</title>
     <link rel="stylesheet" vfs:href="/css/style.css">
 </head>
+
 <body>
     <div id="app">
         <!-- 左侧联系人列表 -->
         <div class="sidebar">
-            <h2>联系人</h2>
+
+            <div class="contacts-header"
+                style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
+                <h2 style="margin:0; color:#fff;">联系人</h2>
+                <button id="add-contact-btn" class="icon-btn">
+                    <img vfs:src="/add-user.png" alt="添加" style="width:24px; height:24px;">
+                </button>
+            </div>
             <ul id="contacts"></ul>
-            <div class="new-contact">
-                <input type="text" id="new-username" placeholder="用户名">
-                <input type="text" id="new-apihost" placeholder="API Host" value="http://sxz.api.zykj.org">
-                <input type="password" id="new-password" placeholder="密码">
-                <button id="add-contact">添加联系人</button>
+            <div class="user-nick-container">
+                <span>昵称</span>
+                <span class="user-nick-text" id="user-nick">我的昵称</span>
+                <button class="user-nick-btn" id="edit-nick-btn">
+                    <img vfs:src="/edit.png" alt="修改" style="width:16px; height:16px; vertical-align:middle;">
+                </button>
             </div>
         </div>
 
@@ -29,7 +39,29 @@
                 <button id="send-message">发送</button>
             </div>
         </div>
+        <!-- ---------- 修改昵称 modal ---------- -->
+        <div class="nick-modal-overlay" id="nick-modal" style="display:none">
+            <div class="nick-modal-box">
+                <h3>修改昵称</h3>
+                <input type="text" id="nick-input" placeholder="输入新的昵称">
+                <button class="nick-modal-save" id="nick-save-btn">保存</button>
+                <button class="nick-modal-cancel" id="nick-cancel-btn">取消</button>
+            </div>
+        </div>
+
+        <!-- ---------- 添加联系人 modal ---------- -->
+        <div class="add-contact-modal-overlay" id="add-contact-modal" style="display:none">
+            <div class="add-contact-modal-box">
+                <h3>添加联系人</h3>
+                <input type="text" id="contact-username" placeholder="用户名">
+                <input type="text" id="contact-apihost" placeholder="API Host" value="http://sxz.api.zykj.org">
+                <input type="password" id="contact-password" placeholder="密码">
+                <button class="modal-save-btn" id="add-contact-save-btn">保存</button>
+                <button class="modal-cancel-btn" id="add-contact-cancel-btn">取消</button>
+            </div>
+        </div>
     </div>
     <script vfs:src="/js/app.js"></script>
 </body>
+
 </html>

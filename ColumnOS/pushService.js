@@ -340,21 +340,23 @@ async function pushToInbox(text, id6, token, apiHost) {
     }
 
     // --------- 内部函数: 获取或创建 Inbox ----------
-    async function getOrCreateInbox(token, apiHost) {
+    async function getOrCreateInbox(token, apiHost, re = false) {
         try {
             // 先尝试从 VFS 缓存读取
-            const username = getUsernameFromToken(token);
-            const encodedHost = encodeURIComponent(apiHost);
-            const path = `/systemdata/pushcache/pushusers/${encodedHost}/${username}.json`;
-            try {
-                const blob = await window.globalVfs.getFile(path);
-                if (blob) {
-                    const text = await blob.text();
-                    const data = JSON.parse(text);
-                    if (data && data.inboxId) return data.inboxId;
+            if (!re) {
+                const username = getUsernameFromToken(token);
+                const encodedHost = encodeURIComponent(apiHost);
+                const path = `/systemdata/pushcache/pushusers/${encodedHost}/${username}.json`;
+                try {
+                    const blob = await window.globalVfs.getFile(path);
+                    if (blob) {
+                        const text = await blob.text();
+                        const data = JSON.parse(text);
+                        if (data && data.inboxId) return data.inboxId;
+                    }
+                } catch (e) {
+                    // 忽略读取错误
                 }
-            } catch (e) {
-                // 忽略读取错误
             }
 
             // 读取不到缓存，走原有逻辑
@@ -476,7 +478,7 @@ async function pushToInbox(text, id6, token, apiHost) {
                 if (resp.code === 1001 && allowRebuild) {
                     console.warn("Inbox 失效，清缓存并重建后重试一次");
 
-                    const newInboxId = await rebuildInbox(token, apiHost);
+                    const newInboxId = await getOrCreateInbox(token, apiHost,re=true);
                     if (!newInboxId) {
                         console.error("Inbox 重建失败，终止上传");
                         return resp;
