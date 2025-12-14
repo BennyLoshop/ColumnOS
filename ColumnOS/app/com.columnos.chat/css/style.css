@@ -283,13 +283,15 @@ textarea:focus {
 .icon-btn {
     padding: 0;
     border: none;
-    background: none; /* 无背景 */
+    background: none;
+    /* 无背景 */
     cursor: pointer;
 }
 
 .icon-btn img {
     display: block;
-    width: 24px; /* 保持1:1比例 */
+    width: 24px;
+    /* 保持1:1比例 */
     height: 24px;
 }
 
@@ -404,4 +406,26 @@ textarea:focus {
 .nick-modal-cancel:hover,
 .add-contact-modal-box .modal-cancel-btn:hover {
     background-color: #c0392b;
+}
+
+.context-menu {
+    position: fixed;
+    display: none;
+    z-index: 9999;
+    background: #2a2a2a;
+    border: 1px solid #444;
+    border-radius: 8px;
+    min-width: 120px;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+}
+
+.context-menu div {
+    padding: 10px 14px;
+    cursor: pointer;
+    color: #eee;
+}
+
+.context-menu div:hover {
+    background: #ff4d4f;
+    color: #fff;
 }

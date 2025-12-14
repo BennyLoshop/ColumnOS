@@ -152,6 +152,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         const installedAppMap = new Map(
             installedApps.map(a => [a.id, a.version || "0.0.0"])
         );
+        isInstalled = installedAppMap.has(app.appId);
+        
+        installedVersion = installedAppMap.get(app.appId);
         const storeVersion = app.appVersion || "0.0.0";
         const hasUpdate = isInstalled && compareVersion(storeVersion, installedVersion) > 0;
 
@@ -384,6 +387,9 @@ async function refreshAppStore(vapp) {
         const installedAppMap = new Map(
             installedApps.map(a => [a.id, a.version || "0.0.0"])
         );
+
+        isInstalled = installedAppMap.has(app.appId);
+        installedVersion = installedAppMap.get(app.appId);
         const storeVersion = app.appVersion || "0.0.0";
         const hasUpdate = isInstalled && compareVersion(storeVersion, installedVersion) > 0;
 

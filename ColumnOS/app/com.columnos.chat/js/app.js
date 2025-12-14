@@ -131,6 +131,46 @@
     const inputUsername = document.getElementById("contact-username");
     const inputApiHost = document.getElementById("contact-apihost");
     const inputPassword = document.getElementById("contact-password");
+    const contactMenu = document.getElementById("contact-menu");
+    const deleteContactBtn = document.getElementById("delete-contact");
+
+    let menuTargetAlias = null;
+    let longPressTimer = null;
+
+    function showContactMenu(x, y, alias) {
+        menuTargetAlias = alias;
+        contactMenu.style.left = x + "px";
+        contactMenu.style.top = y + "px";
+        contactMenu.style.display = "block";
+    }
+
+    function hideContactMenu() {
+        contactMenu.style.display = "none";
+        menuTargetAlias = null;
+    }
+
+    document.addEventListener("click", hideContactMenu);
+    document.addEventListener("scroll", hideContactMenu, true);
+
+    deleteContactBtn.onclick = async () => {
+        if (!menuTargetAlias) return;
+
+        // 从 sessions 移除
+        await chatSessions.load();
+        chatSessions.sessions = chatSessions.sessions.filter(a => a !== menuTargetAlias);
+        await chatSessions.save();
+
+        // 如果正在聊天，清空右侧
+        if (currentAlias === menuTargetAlias) {
+            currentAlias = null;
+            currentChatLog = null;
+            chatTitle.textContent = "选择联系人";
+            messagesEl.innerHTML = "";
+        }
+
+        hideContactMenu();
+        await refreshContacts();
+    };
 
     addContactBtn.onclick = () => {
         inputUsername.value = "";
@@ -279,16 +319,51 @@
     async function refreshContacts() {
         const aliases = await chatSessions.list();
         contactsEl.innerHTML = "";
+
         for (const alias of aliases) {
             const li = document.createElement("li");
+
             const nick = await userNick.getNick(alias);
             const hostPart = alias.split("@")[1] || alias;
+
             li.innerHTML = `${nick} <span class="alias-badge">@${hostPart}</span>`;
-            li.onclick = () => { selectContact(alias); };
+
+            // 普通点击：进入聊天
+            li.onclick = () => {
+                selectContact(alias);
+            };
+
+            // 当前选中高亮
             if (alias === currentAlias) li.classList.add("active");
+
+            /* ---------- 桌面端：右键 ---------- */
+            li.addEventListener("contextmenu", e => {
+                e.preventDefault(); // 禁用浏览器右键
+                showContactMenu(e.clientX, e.clientY, alias);
+            });
+
+            /* ---------- 移动端：长按 ---------- */
+            let longPressTimer = null;
+
+            li.addEventListener("touchstart", e => {
+                longPressTimer = setTimeout(() => {
+                    const touch = e.touches[0];
+                    showContactMenu(touch.clientX, touch.clientY, alias);
+                }, 500); // 500ms 视为长按
+            });
+
+            li.addEventListener("touchend", () => {
+                clearTimeout(longPressTimer);
+            });
+
+            li.addEventListener("touchmove", () => {
+                clearTimeout(longPressTimer);
+            });
+
             contactsEl.appendChild(li);
         }
     }
+
 
 
     async function selectContact(alias) {
@@ -330,7 +405,7 @@
         }
 
         const msgObj = {
-            type: "msg",
+            _type: "msg",
             from: window.userAlias,
             session: "single",
             msg: text
@@ -404,7 +479,7 @@
 
     async function sendCfgUpdate(targetAlias, nickname) {
         const msgObj = {
-            type: "cfg_update",
+            _type: "cfg_update",
             from: window.userAlias,
             cfg_nickName: nickname
         };
@@ -435,7 +510,7 @@
                             console.log("消息内容:", msgObj);
                             console.log("消息类型:", msgObj.type);
 
-                            if (msgObj.type === "cfg_update" && msgObj.cfg_nickName) {
+                            if (msgObj._type === "cfg_update" && msgObj.cfg_nickName) {
                                 await userNick.setNick(msgObj.from, msgObj.cfg_nickName);
                                 console.log("收到昵称更新:", msgObj.from, msgObj.cfg_nickName);
                                 if (msgObj.from === currentAlias) await refreshContacts();

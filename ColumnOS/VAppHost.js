@@ -593,12 +593,7 @@ async function installApp(manifestPath) {
     if (existingIndex >= 0) {
         const oldApp = systemDataApps[existingIndex];
 
-        // ✅ 防止版本回退
-        if (compareVersion(app.appVersion, oldApp.appVersion || "0.0.0") < 0) {
-            throw new Error(
-                `拒绝安装低版本：${oldApp.appVersion} → ${app.appVersion}`
-            );
-        }
+        
 
         systemDataApps[existingIndex] = app;
     } else {
