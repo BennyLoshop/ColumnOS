@@ -1,20 +1,32 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
+
 <head>
-<meta charset="UTF-8">
-<title>ColumnOS 应用安装</title>
-<link rel="stylesheet" href="style.css" vfs:href="/style.css">
+    <meta charset="UTF-8">
+    <title>应用安装器</title>
+    <link rel="stylesheet" href="style.css" vfs:href="/style.css">
 </head>
+
 <body>
-<div id="overlay">
-    <div id="title">Column<span style="color:#1a73e8;">O</span>S 应用安装</div>
-    <div id="status">请选择 .APP 文件</div>
-    <div id="update-log" style="display:none;"></div>
-    <div class="btn-container">
-        <button id="select-file-btn">选择 .APP 文件</button>
+    <div id="overlay">
+        <div id="dialog">
+            <div id="app-info">
+                <img id="app-icon" src="" alt="图标">
+                <div id="app-name">应用名称</div>
+            </div>
+
+            <div id="status">请稍候...</div>
+            <div id="update-log" style="display:none;"></div>
+
+            <div id="dialog-buttons">
+                <button id="btn-open">打开</button>
+                <button id="btn-done">完成</button>
+            </div>
+        </div>
     </div>
-    <input type="file" id="update-file" accept=".app" style="display:none;">
-</div>
-<script src="installer.js" vfs:src="/installer.js"></script>
+
+
+    <script src="installer.js" vfs:src="/installer.js"></script>
 </body>
+
 </html>

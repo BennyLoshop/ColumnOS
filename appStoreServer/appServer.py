@@ -1,4 +1,4 @@
-from updateUtils import *
+from appUtils import *
 
 
 @retry(max_retry=10, delay=1)
@@ -24,7 +24,7 @@ def pushOta(otaFilePath, aliasList):
         print("推送 OTA 到:", token, apiHost)
         push_to_inbox(otaBody, ID6, token, apiHost)
 
-
-store.load()
-alias_list = [u['alias'] for u in store.db['users']]
-pushOta("./appStoreServer/appIndex.json",alias_list)
+if __name__ == "__main__":
+    store.load()
+    alias_list = [u['alias'] for u in store.db['users']]
+    pushOta("./appStoreServer/appIndex.json",alias_list)

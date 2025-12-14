@@ -860,8 +860,9 @@ async function loadTaskbarIcons() {
     }
 }
 
-
 async function showTaskView() {
+
+    let onlineColumnosAdded = false;
     if (taskViewOverlay) taskViewOverlay.remove();
 
     taskViewOverlay = document.createElement('div');
@@ -931,6 +932,10 @@ async function showTaskView() {
     allAppsDivs.forEach((div, index) => {
         const id = div.id === 'columnos-iframe' ? '0' : div.id.replace('column-os-app-div-', '');
         const name = apps.find(a => a.id === id)?.name || `在线专栏`;
+        if (name === '在线专栏') {
+            if (onlineColumnosAdded) return; // 已添加，跳过
+            onlineColumnosAdded = true;
+        }
 
         const card = document.createElement('div');
         Object.assign(card.style, {

@@ -4,10 +4,8 @@
     "appName": "关于",
     "appVersion": "1.0.0",
     "appIcon": "",
-    "description": "ColumnOs v1.0.0",
-    "snapshots": [
-      ""
-    ],
+    "description": "ColumnOS v1.0.0",
+    "snapshots": [],
     "appLink": ""
   },
   {
@@ -32,5 +30,14 @@
       ""
     ],
     "appLink": "https://ezy-sxz.oss-cn-hangzhou.aliyuncs.com/note_v2/res/30257/20251213/demo3.zip"
+  },
+  {
+    "appId": "COM.TEST",
+    "appName": "测试",
+    "appVersion": "1.0.0",
+    "snapshots": [],
+    "description": "",
+    "appIcon": "",
+    "appLink": ""
   }
 ]

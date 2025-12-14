@@ -88,17 +88,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             const blob = await vapp.globalVfs.getFile(path);
             if (blob) return JSON.parse(await blob.text());
         } catch (e) { }
-        const demoApps = Array.from({ length: 10 }, (_, i) => ({
-            appId: `com.columnos.demo${i + 1}`,
-            appName: `示例应用 ${i + 1}`,
-            appIcon: 'https://ezy-sxz.oss-cn-hangzhou.aliyuncs.com/note_v2/res/30257/20251213/e598b178-af39-4a3b-b88f-61807243034a/Screenshot 2025-08-20 214844.png',
-            description: `示例应用 ${i + 1} 描述`,
-            snapshots: ['https://ezy-sxz.oss-cn-hangzhou.aliyuncs.com/note_v2/res/30257/20251213/e598b178-af39-4a3b-b88f-61807243034a/Screenshot 2025-08-20 214844.png'],
-            appLink: `https://ezy-sxz.oss-cn-hangzhou.aliyuncs.com/note_v2/res/30257/20251213/fc6e3e92-9837-474c-b51f-f8c88795c3b2/system.zip`
-        }));
-        const blob = new Blob([JSON.stringify(demoApps, null, 2)], { type: 'application/json' });
-        await vapp.globalVfs.createDirIfNotExist("/systemdata/appstore");
-        await vapp.globalVfs.setFile(path, blob);
+        const demoApps = {};
+        alert("应用信息未获取，请联系管理员");
         return demoApps;
     }
 

@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <title>App Store 管理</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body {
+            margin: 0;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont;
+            background: #121212;
+            color: #eee;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+
+        .list {
+            width: 280px;
+            border-right: 1px solid #333;
+            overflow-y: auto;
+        }
+
+        .list-item {
+            padding: 12px;
+            border-bottom: 1px solid #222;
+            cursor: pointer;
+        }
+
+        .list-item:hover {
+            background: #1e1e1e;
+        }
+
+        .list-item.active {
+            background: #1a73e8;
+        }
+
+        .content {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        input,
+        textarea {
+            width: 100%;
+            background: #1e1e1e;
+            border: 1px solid #333;
+            color: #eee;
+            padding: 8px;
+            margin-bottom: 10px;
+        }
+
+        textarea {
+            min-height: 80px;
+        }
+
+        button {
+            padding: 8px 14px;
+            margin-right: 10px;
+            background: #1a73e8;
+            border: none;
+            color: #fff;
+            cursor: pointer;
+        }
+
+        button.danger {
+            background: #c0392b;
+        }
+
+        small {
+            color: #aaa;
+        }
+
+        .top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* 🔑 全局 box model 修正 */
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+        }
+
+        .field {
+            position: relative;
+            margin-bottom: 10px;
+        }
+
+        /* 输入框本体 */
+        .field input,
+        .field textarea {
+            width: 100%;
+            background: #1e1e1e;
+            border: 1px solid #333;
+            color: #eee;
+            padding: 8px 40px 8px 8px;
+            /* 右侧明确留 40px */
+            margin: 0;
+        }
+
+        /* textarea 顶部对齐 */
+        .field textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+
+        /* 悬浮上传按钮 */
+        .upload-btn {
+            position: absolute;
+            top: 4px;
+            right: -6px;
+            width: 24px;
+            height: 24px;
+            padding: 0;
+            border-radius: 6px;
+            background: #2a2a2a;
+            border: 1px solid #444;
+            color: #fff;
+            cursor: pointer;
+
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+        }
+
+        .upload-btn:hover {
+            background: #1a73e8;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <div class="list" id="appList"></div>
+
+        <div class="content">
+            <div class="top">
+                <h2 id="title">请选择应用</h2>
+                <div>
+                    <button onclick="create()">＋ 新增</button>
+                    <button onclick="push()" style="background:#34a853">🚀 推送</button>
+                </div>
+            </div>
+
+            <label>App ID</label>
+            <input id="appId" disabled>
+
+            <label>应用名称</label>
+            <input id="appName">
+
+            <label>版本号</label>
+            <input id="appVersion">
+
+            <label>图标 URL</label>
+            <div class="field">
+                <input id="appIcon">
+                <button class="upload-btn" onclick="uploadToInput('appIcon')" title="上传">⬆</button>
+            </div>
+
+            <label>描述</label>
+            <textarea id="description"></textarea>
+
+            <label>截图（每行一个 URL）</label>
+            <div class="field">
+                <textarea id="snapshots"></textarea>
+                <button class="upload-btn" onclick="uploadToSnapshots()" title="上传">⬆</button>
+            </div>
+
+
+            <label>安装包链接</label>
+            <div class="field">
+                <input id="appLink">
+                <button class="upload-btn" onclick="uploadToInput('appLink')" title="上传">⬆</button>
+            </div>
+
+            <div>
+                <button onclick="save()">保存</button>
+                <button class="danger" onclick="remove()">删除</button>
+            </div>
+
+            <small id="status"></small>
+        </div>
+    </div>
+
+    <script>
+        /** 🔧 修改为你的 Flask 地址 */
+        const API_BASE = "";
+
+        let apps = [];
+        let current = null;
+
+        async function api(path, options = {}) {
+            const res = await fetch(API_BASE + path, {
+                headers: { "Content-Type": "application/json" },
+                ...options
+            });
+            if (!res.ok) throw new Error(await res.text());
+            return res.json();
+        }
+
+        async function load() {
+            apps = await api("/apps");
+            renderList();
+        }
+
+        function renderList() {
+            const list = document.getElementById("appList");
+            list.innerHTML = "";
+            apps.forEach(app => {
+                const div = document.createElement("div");
+                div.className = "list-item" + (current && current.appId === app.appId ? " active" : "");
+                div.textContent = `${app.appName} (${app.appVersion})`;
+                div.onclick = () => select(app);
+                list.appendChild(div);
+            });
+        }
+        async function push() {
+            if (!confirm("确认推送当前应用列表？")) return;
+
+            status.textContent = "⏳ 推送中...";
+            try {
+                const res = await fetch(API_BASE + "/push", {
+                });
+
+                if (!res.ok) {
+                    throw new Error("push failed");
+                }
+
+                const data = await res.json();
+                if (data.success) {
+                    status.textContent = "✅ 推送成功";
+                } else {
+                    throw new Error("push failed");
+                }
+            } catch (e) {
+                console.error(e);
+                status.textContent = "❌ 推送失败";
+                alert("推送失败，请查看服务器日志");
+            }
+        }
+
+        function select(app) {
+            current = app;
+            title.textContent = app.appName;
+            appId.value = app.appId;
+            appName.value = app.appName || "";
+            appVersion.value = app.appVersion || "";
+            appIcon.value = app.appIcon || "";
+            description.value = app.description || "";
+            snapshots.value = (app.snapshots || []).join("\n");
+            appLink.value = app.appLink || "";
+            renderList();
+        }
+
+        async function save() {
+            if (!current) return;
+            await api("/apps/" + current.appId, {
+                method: "PUT",
+                body: JSON.stringify({
+                    appName: appName.value,
+                    appVersion: appVersion.value,
+                    appIcon: appIcon.value,
+                    description: description.value,
+                    snapshots: snapshots.value.split("\n").filter(Boolean),
+                    appLink: appLink.value
+                })
+            });
+            status.textContent = "✔ 已保存";
+            load();
+        }
+
+        async function remove() {
+            if (!current || !confirm("确定删除该应用？")) return;
+            await api("/apps/" + current.appId, { method: "DELETE" });
+            current = null;
+            title.textContent = "请选择应用";
+            status.textContent = "✔ 已删除";
+            load();
+        }
+
+        async function create() {
+            const id = prompt("请输入 appId（不可重复）");
+            if (!id) return;
+            await api("/apps", {
+                method: "POST",
+                body: JSON.stringify({
+                    appId: id,
+                    appName: "新应用",
+                    appVersion: "1.0.0"
+                })
+            });
+            load();
+        }
+        async function uploadFile() {
+            return new Promise((resolve, reject) => {
+                const input = document.createElement("input");
+                input.type = "file";
+                input.onchange = async () => {
+                    const file = input.files[0];
+                    if (!file) return;
+
+                    const form = new FormData();
+                    form.append("file", file);
+
+                    try {
+                        const res = await fetch(API_BASE + "/upload", {
+                            method: "POST",
+                            body: form
+                        });
+                        const data = await res.json();
+                        resolve(data.url);
+                    } catch (e) {
+                        alert("上传失败");
+                        reject(e);
+                    }
+                };
+                input.click();
+            });
+        }
+        async function uploadToInput(inputId) {
+            const url = await uploadFile();
+            document.getElementById(inputId).value = url;
+            status.textContent = "✔ 上传成功";
+        }
+        async function uploadToSnapshots() {
+            const url = await uploadFile();
+            const el = document.getElementById("snapshots");
+            el.value = el.value
+                ? el.value + "\n" + url
+                : url;
+            status.textContent = "✔ 截图已添加";
+        }
+
+        load();
+    </script>
+
+</body>
+
+</html>
