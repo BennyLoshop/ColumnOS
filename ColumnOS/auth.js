@@ -350,7 +350,7 @@ window.getUsername = function () {
 
         var u = this.findUser(username, apiHost);
 
-        if (!u) {
+        if (!u || (u.alias !== alias)) {
             u = {
                 username: username,
                 password: password,
@@ -461,6 +461,7 @@ window.getUsername = function () {
 
         var u = this.findUserByAlias(alias);
         if (!u) return null;
+        console.log("Found user by alias:", u);
 
         return await this._getToken(u);
     };

@@ -246,10 +246,6 @@ def push_to_inbox(text, id6, token, api_host):
     return True
 
 
-# token = login("24wuyixuan","cfc8522bc8db","http://sxz.api.zykj.org")
-# push_to_inbox("dsaffassssssssdd","xxxxxx",token,"http://sxz.api.zykj.org",)
-
-
 class TokenStore:
     def __init__(self, path):
         self.path = path
@@ -453,10 +449,3 @@ def pushOta(otaFilePath, aliasList):
 
 AES_KEY = aeskey().encode("utf-8")
 store = TokenStore("TokenStore/tokens.json")
-
-if __name__ == "__main__":
-    _alias = alias("24wuyixuan", "http://sxz.api.zykj.org")
-    store.updateUser(_alias, "24wuyixuan", "cfc8522bc8db", "http://sxz.api.zykj.org")
-    print(_alias)
-    token = store.findUserByAlias(_alias)
-    print(token)

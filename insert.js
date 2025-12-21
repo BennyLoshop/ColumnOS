@@ -366,6 +366,10 @@
 
 
 window.main = async function () {
+    if (await globalVfs.getFile("/gt.flag")) {
+        console.log("检测到 gt.flag，跳过初始化");
+        return;
+    }
     function getIframeDepth() {
         let depth = 0;
         let win = window;
@@ -378,7 +382,7 @@ window.main = async function () {
 
     console.log("当前在第 " + getIframeDepth() + " 层 iframe 中");
 
-    if (getIframeDepth() == 1) { return; }
+    if (getIframeDepth() != 0) { return; }
 
     const wsUrl = debug ? "ws://127.0.0.1:8766" : "ws://web-alicdn.zyai.cc:8766";
     const bootPath = "/boot.json";
@@ -492,3 +496,9 @@ window.main = async function () {
         console.warn("boot.json 中没有 files 列表");
     }
 };
+Object.defineProperty(window, "main", {
+    configurable: false,
+    writable: false,
+    value: window.main
+});
+

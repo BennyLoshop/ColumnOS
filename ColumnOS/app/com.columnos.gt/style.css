@@ -1,0 +1,103 @@
+html, body {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  background-color: #3a3d55;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#button-background {
+  position: relative;
+  background-color: rgba(255, 255, 255, 0.3);
+  width: 400px;
+  height: 80px;
+  border: white;
+  border-radius: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#slider {
+  transition: width 0.3s, border-radius 0.3s, height 0.3s;
+  position: absolute;
+  left: -10px;
+  background-color: white;
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#slider.unlocked {
+  transition: all 0.3s;
+  width: inherit;
+  left: 0 !important;
+  height: inherit;
+  border-radius: inherit;
+}
+
+.material-icons {
+  color: black;
+  font-size: 50px;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -khtml-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  cursor: default;
+}
+
+.slide-text {
+  color: #3a3d55;
+  font-size: 24px;
+  text-transform: uppercase;
+  font-family: "Roboto", sans-serif;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -khtml-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  cursor: default;
+}
+
+.slide-text-ok {
+  color: #885a5a;
+  font-size: 24px;
+  text-transform: uppercase;
+  display:none;
+  font-family: "Roboto", sans-serif;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -khtml-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  white-space: nowrap;  
+  cursor: default;
+  overflow: hidden;   
+  text-align: center;
+}
+
+#locker {
+  display: flex;
+  align-items: center;     /* 竖直居中 */
+  justify-content: center; /* 如果你也想水平居中 */
+}
+
+.bottom {
+  position: fixed;
+  bottom: 0;
+  font-size: 14px;
+  color: white;
+}
+.bottom a {
+  color: white;
+}

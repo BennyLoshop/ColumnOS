@@ -11,6 +11,7 @@
     "VAppHost.js",
     "chunk.js",
     "pushService.js",
+    "gt.js",
     "UICore.js",
     "safety.js",
     "ColumnOS.js"

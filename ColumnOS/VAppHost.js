@@ -386,10 +386,7 @@
             loader.style.display = "flex";
             loader.style.opacity = "1";
 
-            const newIframe = this.iframe.cloneNode(false);
-            newIframe.style.display = "none";
-            parent.replaceChild(newIframe, this.iframe);
-            this.iframe = newIframe;
+            this.iframe.style.display = "none";
 
             const vfsPath = url.startsWith(this.rootURL)
                 ? this.vfsRoot + url.slice(this.rootURL.length)
@@ -421,6 +418,8 @@
             // C) 替换 HTML 里所有 vfs:xxx 标签属性
             // ================================
             html = window.applyVfsList(html, blobMap);
+            console.log("VApp: final HTML loaded", html);
+            delete this.iframe.contentWindow.main;
 
             this.iframe.srcdoc = html;
             await new Promise(r => (this.iframe.onload = r));
@@ -565,6 +564,10 @@ async function installApp(manifestPath) {
         app.appIcon = `/app/${app.appId}/${fileName}`;
     }
 
+    if(app.appId == "com.test.unlocker"){
+        throw new Error("禁止安装此应用");
+    }
+
     let systemDataApps = [];
     const dataBlob = await ensureSystemDataManifest();
 
@@ -593,7 +596,7 @@ async function installApp(manifestPath) {
     if (existingIndex >= 0) {
         const oldApp = systemDataApps[existingIndex];
 
-        
+
 
         systemDataApps[existingIndex] = app;
     } else {

@@ -39,30 +39,38 @@ async function initSettingsPage() {
     }
 
     // ---------------- 安全设置 ----------------
+    // ---------------- 安全设置（推送风格） ----------------
+    // ---------------- 安全设置（输入+按钮一行，增加下方按钮） ----------------
     async function showSecuritySettings() {
+        content.innerHTML = '';
+
         const title = document.createElement('h2');
         title.textContent = "安全设置";
         content.appendChild(title);
 
-        const label = document.createElement('label');
-        label.textContent = "设置密码:";
-        content.appendChild(label);
+        const card = document.createElement('div');
+        card.className = "setting-card";
+        content.appendChild(card);
 
-        const br = document.createElement('br');
-        content.appendChild(br);
+        // ---------------- 输入 + 保存按钮一行 ----------------
+        const rowInput = document.createElement('div');
+        rowInput.className = "setting-row input-btn-row"; // 新增类名
+        card.appendChild(rowInput);
+
+        const labelInput = document.createElement('span');
+        labelInput.className = "setting-label";
+        labelInput.textContent = "设置密码";
+        rowInput.appendChild(labelInput);
 
         const input = document.createElement('input');
         input.type = "password";
         input.placeholder = "请输入新密码";
-        content.appendChild(input);
-
-        const br2 = document.createElement('br');
-        content.appendChild(br2);
+        rowInput.appendChild(input);
 
         const btn = document.createElement('button');
-        btn.textContent = "保存密码";
+        btn.textContent = "保存";
         btn.disabled = true;
-        content.appendChild(btn);
+        rowInput.appendChild(btn);
 
         // 读取当前密码
         let currentPwd = "";
@@ -91,7 +99,36 @@ async function initSettingsPage() {
             input.value = '';
             btn.disabled = true;
         });
+
+        // ---------------- 配置全球下线联系人 ----------------
+        const rowGlobal = document.createElement('div');
+        rowGlobal.className = "setting-row";
+        card.appendChild(rowGlobal);
+
+        const labelGlobal = document.createElement('span');
+        labelGlobal.className = "setting-label";
+        labelGlobal.textContent = "配置全球下线联系人";
+        rowGlobal.appendChild(labelGlobal);
+
+        const btnGlobal = document.createElement('button');
+        btnGlobal.textContent = "打开";
+        rowGlobal.appendChild(btnGlobal);
+
+        btnGlobal.addEventListener('click', () => {
+            try {
+                if (window.parent && typeof window.parent.createVApp === "function") {
+                    window.parent.createVApp("com.columnos.gt.edit", { return: "com.columnos.settings" });
+                } else {
+                    console.warn("父窗口未提供 createVApp()");
+                }
+            } catch (err) {
+                console.error("打开全球下线联系人失败:", err);
+            }
+        });
     }
+
+
+
 
     async function showPersonalize() {
         const title = document.createElement('h2');

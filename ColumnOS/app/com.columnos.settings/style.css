@@ -278,3 +278,33 @@ input:checked + .slider::before {
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
 }
+
+/* 输入 + 按钮一行 */
+.setting-row.input-btn-row {
+    display: flex;
+    align-items: center; /* 垂直居中 */
+    gap: 8px; /* 输入框和按钮间距 */
+}
+
+/* 调整 input 高度与按钮一致 */
+.setting-row.input-btn-row input[type="password"] {
+    flex: 1 1 auto;
+    max-width: 200px;
+    margin: 0;
+    padding: 8px 10px; /* 高度与按钮一致 */
+    font-size: 14px;
+    border-radius: 6px;
+    border: 1px solid #555;
+    background: #2b2b2b;
+    color: #fff;
+    box-sizing: border-box;
+}
+
+/* 调整按钮高度与 input 对齐 */
+.setting-row.input-btn-row button {
+    padding: 8px 14px; /* 与 input 高度匹配 */
+    font-size: 14px;
+}
+input[type="password"] {
+    height: 41px;
+}

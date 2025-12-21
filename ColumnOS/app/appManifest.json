@@ -78,5 +78,18 @@
     "appId": "com.columnos.store",
     "appIcon": "/system/app/com.columnos.store/icon.png",
     "appVersion":"1.0.1"
+  },
+  {
+    "appName": "全球下线",
+    "appId": "com.columnos.gt",
+    "appIcon": "/system/app/com.columnos.gt/icon.png",
+    "appVersion":"1.0.1"
+  },
+  {
+    "appName": "全球下线参数配置",
+    "appId": "com.columnos.gt.edit",
+    "appIcon": "/system/app/com.columnos.gt/icon.png",
+    "showInLaunchPad": false,
+    "appVersion":"1.0.1"
   }
 ]

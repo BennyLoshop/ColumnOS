@@ -127,6 +127,9 @@ document.body.prepend(taskbar);
 // 调用一次，taskbar 创建完成后
 loadTaskbarIcons();
 
+(async () => {
+    GtS();
+})();
 
 // ---------- Launchpad ----------
 const overlay = document.createElement('div');
@@ -666,6 +669,7 @@ function createAppDiv(id) {
     iframe.style.border = 'none';
     iframe.style.backgroundColor = '#1e1e1e';
     iframe.id = `column-os-iframe-${id}`;
+    iframe.src = `about:blank`; // 初始空白，稍后由 VApp 加载内容
     div.appendChild(iframe);
 
     // 创建加载覆盖层，id = iframe id + "-loader"

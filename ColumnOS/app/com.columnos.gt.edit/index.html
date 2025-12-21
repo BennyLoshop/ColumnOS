@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en" class="show-contacts">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Meaningful Transitions</title>
+  <link rel='stylesheet' href='font-awesome.css' vfs:href='/font-awesome.css'>
+  <link rel="stylesheet" href="./style.css" vfs:href='/style.css'>
+
+</head>
+
+<body>
+  <!--
+	Based on the contacts video from Meaningful Transitions
+	https://www.google.com/design/spec/animation/meaningful-transitions.html#
+-->
+
+  <!-- Centered wrapper -->
+  <div class="app-wrapper">
+    <!-- Header for the 'app' -->
+    <header class="app-bar">
+      <button id="menuToggle" class="app-bar-button menu-toggle menu-is-closed"><i
+          class="fa fa-arrow-left"></i></button>
+      <h1 id="appHeadline" class="app-headline">全球下线联系人配置</h1>
+      <button id="sortToggle" class="app-bar-button sort-toggle"><i class="fa fa-pencil"></i></button>
+      <button id="idToggle" class="app-bar-button id-toggle"><i class="fa fa-inbox"></i></button>
+      <button id="addToggle" class="app-bar-button add-toggle"><i class="fa fa-plus"></i></button>
+      <button id="delToggle" class="app-bar-button del-toggle"><i class="fa fa-trash-o"></i></button>
+    </header>
+    <!-- END 'app' Header -->
+
+    <!-- Table of contacts -->
+    <div class="app-body">
+
+      <!-- List of contacts, these are built dynamicly by javascript on page load -->
+      <table id="contactList" class="contact-list">
+        <tbody>
+        </tbody>
+      </table>
+      <!-- END List of contacts -->
+
+      <!-- Contact Info (Details), hidden by default, visible when a contact is selected -->
+      <!-- This info is not contact item specific so it is not loaded dynamically -->
+      <table id="contactInfo" class="contact-info">
+        <tbody>
+          <tr class="contact-info-item">
+            <td class="contact-info-icon">用户名</td>
+            <td class="contact-info-detail">
+              <input id="input-username" type="text" value="joedoe" readonly class="readonly">
+            </td>
+          </tr>
+          <tr class="contact-info-item">
+            <td class="contact-info-icon">密码</td>
+            <td class="contact-info-detail">
+              <input id="input-password" type="password" value="123456" readonly class="readonly">
+            </td>
+          </tr>
+          <tr class="contact-info-item">
+            <td class="contact-info-icon">apihost</td>
+            <td class="contact-info-detail">
+              <input id="input-apihost" type="text" value="https://api.example.com" readonly class="readonly">
+            </td>
+          </tr>
+          <tr class="contact-info-item">
+            <td class="contact-info-icon">信号ID</td>
+            <td class="contact-info-detail">
+              <input id="input-signalid" type="text" value="ABC123XYZ" readonly class="readonly">
+            </td>
+          </tr>
+        </tbody>
+
+      </table>
+      <!-- End Contact Info (Details) -->
+    </div>
+  </div>
+  <!-- 新建联系人模态框 -->
+  <div id="add-contact-modal" class="modal-hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        新建联系人
+      </div>
+      <div class="modal-body">
+        <div class="modal-row">
+          <label for="add-firstName">用户名</label>
+          <input id="add-firstName" type="text" placeholder="用户名">
+        </div>
+        <div class="modal-row">
+          <label for="add-password">密码</label>
+          <input id="add-password" type="password" placeholder="密码">
+        </div>
+        <div class="modal-row">
+          <label for="add-apihost">Apihost</label>
+          <input id="add-apihost" type="text" value="http://sxz.api.zykj.org">
+        </div>
+        <div class="modal-row">
+          <label for="add-signalid">信号ID</label>
+          <input id="add-signalid" type="text" placeholder="信号ID">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="add-cancel" class="modal-btn cancel">取消</button>
+        <button id="add-ok" class="modal-btn ok">确定</button>
+      </div>
+    </div>
+  </div>
+  <!-- 模态 HTML -->
+  <div id="gt-id-modal">
+    <div class="modal-card">
+      <div class="modal-header">全球下线信息</div>
+      <div class="modal-body">
+        <div class="modal-row">
+          <label>信号ID</label>
+          <input type="text" id="gt-signalid" readonly />
+        </div>
+        <div class="modal-row">
+          <label>提示</label>
+          <textarea readonly>
+请不要删除、移动或重命名云笔记中出现的8位随机名称的文件夹，避免触发下线
+        </textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="modal-btn ok" id="gt-ok">确定</button>
+      </div>
+    </div>
+  </div>
+
+
+  <script src='randomColor.min.js' vfs:src="/randomColor.min.js"></script>
+  <script src="./script.js" vfs:src="/script.js"></script>
+
+</body>
+
+</html>
