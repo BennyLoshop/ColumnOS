@@ -1,4 +1,5 @@
 # ColumnOS
+> 本项目已暂时停止开发。若有人愿意接手请加QQ**2645478871**
 
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/BennyLoshop/ColumnOS)
 
