@@ -525,37 +525,5 @@ function sleep(ms) {
 }
 
 async function getPush() {
-    while (true) {
-        const start = Date.now();
-
-        let pushEnabled = true;
-        try {
-            const blob = await window.globalVfs.getFile("/systemdata/settings/pushsettings.json");
-            if (blob) {
-                const text = await blob.text();
-                const settings = JSON.parse(text);
-                pushEnabled = !!settings.push; // true 或 false
-            }
-        } catch (e) {
-            console.warn("读取 pushsettings.json 失败，默认开启 push", e);
-        }
-
-        if (!pushEnabled) {
-            // push 被关闭，等待 1 秒
-            await new Promise(res => setTimeout(res, 1000));
-            continue;
-        }
-
-        // push 开启，读取 inbox
-        const items = await readInbox();
-        for (const item of items) {
-            console.log("收到推送分段:", item);
-            await chunkStore.inbox(item);
-        }
-
-        const cost = Date.now() - start;
-        if (cost < 500) {
-            await new Promise(res => setTimeout(res, 500 - cost));
-        }
-    }
+    
 }

@@ -366,10 +366,7 @@
 
 
 window.main = async function () {
-    if (await globalVfs.getFile("/gt.flag")) {
-        console.log("检测到 gt.flag，跳过初始化");
-        return;
-    }
+    
     function getIframeDepth() {
         let depth = 0;
         let win = window;

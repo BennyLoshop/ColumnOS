@@ -19,7 +19,6 @@ var ChunkStore = function (vfsPath) {
     })();
 };
 
-// 内部保存函数
 ChunkStore.prototype._save = async function () {
     if (this.vfsPath && window.globalVfs) {
         try {
@@ -31,7 +30,6 @@ ChunkStore.prototype._save = async function () {
     }
 };
 
-// 收到分段
 ChunkStore.prototype.inbox = async function (segment) {
     var match = segment.match(/^([a-zA-Z0-9]{6})>([0-9a-fA-F\-]+)@(\d+)~(\d+):(.*)$/);
     if (!match) return false;
@@ -63,7 +61,6 @@ ChunkStore.prototype.inbox = async function (segment) {
     return true;
 };
 
-// 查询完整文本
 ChunkStore.prototype.search = async function (type, wait) {
     var self = this;
     wait = wait || false;
@@ -104,7 +101,6 @@ ChunkStore.prototype.search = async function (type, wait) {
     }
 };
 
-// 其余方法不变...
 ChunkStore.prototype.status = function () {
     var result = {};
     for (var type in this.store) {
@@ -120,6 +116,29 @@ ChunkStore.prototype.status = function () {
     }
     return result;
 };
+
+ChunkStore.prototype.loadMsg = async function (type, msg) {
+    if (!this.store[type]) this.store[type] = {};
+
+    // 生成一个唯一的 groupID
+    var groupID = 'load-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
+
+    // 与 chunk / inbox 保持一致的 base64 编码
+    var base64Text = btoa(unescape(encodeURIComponent(msg)));
+
+    // 构造一个“已完成”的 chunk 组
+    this.store[type][groupID] = {
+        maxIndex: 0,
+        chunks: {
+            0: base64Text
+        },
+        resolveQueue: []
+    };
+
+    await this._save();
+    return true;
+};
+
 
 // ================== chunk 函数 ==================
 function chunk(text, type, chunkSize, prefixOverhead) {

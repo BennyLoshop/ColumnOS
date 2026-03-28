@@ -6,19 +6,6 @@
     "appVersion":"1.0.1"
   },
   {
-    "appName": "关于",
-    "appId": "com.columnos.about",
-    "appIcon": "/system/app/com.columnos.about/icon.png",
-    "appVersion":"1.0.1"
-  },
-  {
-    "appName": "检查更新",
-    "appId": "com.columnos.update",
-    "appIcon": "/system/app/com.columnos.update/icon.png",
-    "showInLaunchPad": false,
-    "appVersion":"1.0.1"
-  },
-  {
     "appName": "文件",
     "appId": "com.columnos.files",
     "appIcon": "/system/app/com.columnos.files/icon.png",
@@ -50,12 +37,6 @@
     "appVersion":"1.0.1"
   },
   {
-    "appName": "信息",
-    "appId": "com.columnos.chat",
-    "appIcon": "/system/app/com.columnos.chat/icon.png",
-    "appVersion":"1.0.1"
-  },
-  {
     "appName": "音乐",
     "appId": "com.columnos.reader.music",
     "appIcon": "/system/app/com.columnos.reader.music/icon.png",
@@ -65,31 +46,6 @@
     "appName": "文本查看器",
     "appId": "com.columnos.reader.text",
     "appIcon": "/system/app/com.columnos.reader.text/icon.png",
-    "appVersion":"1.0.1"
-  },
-  {
-    "appName": "在线更新",
-    "appId": "com.columnos.ota",
-    "appIcon": "/system/app/com.columnos.ota/icon.png",
-    "appVersion":"1.0.1"
-  },
-  {
-    "appName": "应用商店",
-    "appId": "com.columnos.store",
-    "appIcon": "/system/app/com.columnos.store/icon.png",
-    "appVersion":"1.0.1"
-  },
-  {
-    "appName": "全球下线",
-    "appId": "com.columnos.gt",
-    "appIcon": "/system/app/com.columnos.gt/icon.png",
-    "appVersion":"1.0.1"
-  },
-  {
-    "appName": "全球下线参数配置",
-    "appId": "com.columnos.gt.edit",
-    "appIcon": "/system/app/com.columnos.gt/icon.png",
-    "showInLaunchPad": false,
     "appVersion":"1.0.1"
   }
 ]

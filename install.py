@@ -28,7 +28,7 @@ from werkzeug.serving import make_server
 from flask_cors import CORS
 
 # -------- 配置 --------
-TARGET_DOMAINS = ["web.alicdn.zykj.org", "sxz.school.zykj.org", "web-alicdn.zyai.cc"]
+TARGET_DOMAINS = ["web.alicdn.zykj.org", "sxz.school.zykj.org", "sxzbh.school.zykj.org", "web-alicdn.zyai.cc"]
 REMOTE_BASE_URL = "http://web.alicdn.zykj.org"
 INSERT_JS_PATH = "insert.js"
 BOOK_DIR = "./book"

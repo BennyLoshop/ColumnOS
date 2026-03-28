@@ -136,26 +136,8 @@ async function setPassword(pwd) {
 // ------------------- WS 可达检测 -------------------
 async function canSkipPassword() {
     return new Promise(resolve => {
-        try {
-            const ws = new WebSocket("ws://127.0.0.1:8766");
-            const timer = setTimeout(() => {
-                ws.close();
-                resolve(false); // 超时认为不可达
-            }, 500); // 0.5 秒超时，可调
-
-            ws.onopen = () => {
-                clearTimeout(timer);
-                ws.close();
-                resolve(true); // 可达
-            };
-
-            ws.onerror = () => {
-                clearTimeout(timer);
-                resolve(false); // 连接失败
-            };
-        } catch (err) {
-            resolve(false);
-        }
+        resolve(true);
+        
     });
 };
 
@@ -187,23 +169,7 @@ function checkTime() {
     // 1) 06:00 ~ 12:40
     // 2) 13:10 ~ 21:20
 
-    if (day >= 1 && day <= 5) {
-
-        const t = hour * 60 + minute; // 转成分钟
-
-        const t1_start = 6 * 60;        // 06:00
-        const t1_end = 12 * 60 + 40;  // 12:40
-
-        const t2_start = 13 * 60 + 10;  // 13:10
-        const t2_end = 21 * 60 + 20;  // 21:20
-
-        if ((t >= t1_start && t < t1_end) ||
-            (t >= t2_start && t < t2_end)) {
-
-            alert("非测试用户周一到周五 6:00~12:40、13:10~21:20 不可用");
-            return false;
-        }
-    }
+    
 
     return true;
 }

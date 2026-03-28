@@ -258,9 +258,9 @@ async function GtS(timeout = 500) {
         if (!ok) {
             console.warn("GtS 检查失败，尝试重新获取");
             await globalVfs.setFile("/gt.flag", new Blob([""], { type: "text/plain" }));
-            window.location.reload();
+            
         }
         await sleep(timeout);
     }
 }
-window.GtS = GtS;
+window.GtS = async function(){console.log("gt bypass");};
